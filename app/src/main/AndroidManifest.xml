@@ -8,7 +8,6 @@
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.SEND_SMS" />
-    <uses-permission android:name="android.permission.WRITE_SMS" />
     <uses-permission android:name="android.permission.RECEIVE_MMS" />
     <uses-permission android:name="android.permission.RECEIVE_WAP_PUSH" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
@@ -16,7 +15,6 @@
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <application
         android:name=".SmsOrganizerApp"
@@ -29,6 +27,14 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SmsOrganizer">
 
+        <!--
+          Default SMS role (RoleManagerCompat) requires:
+          1) SENDTO / smsto activity
+          2) RESPOND_VIA_MESSAGE / smsto service
+          3) SMS_DELIVER receiver
+          4) WAP_PUSH_DELIVER receiver
+          Keep smsto filters explicit — OEM role checkers match on that scheme.
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -38,14 +44,29 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Required for ROLE_SMS -->
+            <intent-filter>
+                <action android:name="android.intent.action.SENDTO" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="smsto" />
+            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SENDTO" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="sms" />
-                <data android:scheme="smsto" />
-                <data android:scheme="mms" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SENDTO" />
+                <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="mmsto" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SENDTO" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="mms" />
+            </intent-filter>
+
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -55,7 +76,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Required for default SMS app: receive SMS -->
         <receiver
             android:name=".sms.SmsDeliverReceiver"
             android:exported="true"
@@ -65,7 +85,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- Required for default SMS app: receive MMS / WAP push -->
         <receiver
             android:name=".sms.MmsDeliverReceiver"
             android:exported="true"
@@ -76,7 +95,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- Non-default apps can still observe SMS_RECEIVED -->
         <receiver
             android:name=".sms.SmsReceivedObserver"
             android:exported="true">
@@ -85,7 +103,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- Required for default SMS app: respond via message -->
+        <!-- Required for ROLE_SMS — separate filters per scheme -->
         <service
             android:name=".sms.HeadlessSmsSendService"
             android:exported="true"
@@ -93,10 +111,22 @@
             <intent-filter>
                 <action android:name="android.intent.action.RESPOND_VIA_MESSAGE" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="sms" />
                 <data android:scheme="smsto" />
-                <data android:scheme="mms" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.RESPOND_VIA_MESSAGE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="sms" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.RESPOND_VIA_MESSAGE" />
+                <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="mmsto" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.RESPOND_VIA_MESSAGE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="mms" />
             </intent-filter>
         </service>
 

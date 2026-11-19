@@ -65,6 +65,8 @@ fun InboxScreen(
     onSettings: () -> Unit,
     onRequestDefaultSms: () -> Unit,
     onRequestPermissions: () -> Unit,
+    onOpenAppInfo: () -> Unit,
+    onOpenDefaultApps: () -> Unit,
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val conversations by viewModel.conversations.collectAsStateWithLifecycle()
@@ -105,9 +107,17 @@ fun InboxScreen(
                 )
             } else if (!ui.isDefaultSms) {
                 Banner(
-                    text = stringResource(R.string.default_sms_prompt),
+                    text = if (ui.defaultSmsRequestDenied || !ui.smsRoleAvailable) {
+                        stringResource(R.string.default_sms_denied_help)
+                    } else {
+                        stringResource(R.string.default_sms_prompt)
+                    },
                     action = stringResource(R.string.set_default_sms),
                     onAction = onRequestDefaultSms,
+                    secondaryAction = stringResource(R.string.open_app_info),
+                    onSecondaryAction = onOpenAppInfo,
+                    tertiaryAction = stringResource(R.string.open_default_apps),
+                    onTertiaryAction = onOpenDefaultApps,
                 )
             }
 
@@ -181,7 +191,15 @@ fun InboxScreen(
 }
 
 @Composable
-private fun Banner(text: String, action: String, onAction: () -> Unit) {
+private fun Banner(
+    text: String,
+    action: String,
+    onAction: () -> Unit,
+    secondaryAction: String? = null,
+    onSecondaryAction: (() -> Unit)? = null,
+    tertiaryAction: String? = null,
+    onTertiaryAction: (() -> Unit)? = null,
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -193,6 +211,12 @@ private fun Banner(text: String, action: String, onAction: () -> Unit) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(text = text, style = MaterialTheme.typography.bodyMedium)
             TextButton(onClick = onAction) { Text(action) }
+            if (secondaryAction != null && onSecondaryAction != null) {
+                TextButton(onClick = onSecondaryAction) { Text(secondaryAction) }
+            }
+            if (tertiaryAction != null && onTertiaryAction != null) {
+                TextButton(onClick = onTertiaryAction) { Text(tertiaryAction) }
+            }
         }
     }
 }

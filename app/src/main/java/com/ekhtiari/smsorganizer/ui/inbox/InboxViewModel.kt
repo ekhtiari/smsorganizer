@@ -22,6 +22,8 @@ data class InboxUiState(
     val searchQuery: String = "",
     val isDefaultSms: Boolean = false,
     val hasPermissions: Boolean = false,
+    val smsRoleAvailable: Boolean = true,
+    val defaultSmsRequestDenied: Boolean = false,
     val sims: List<SimInfo> = emptyList(),
 )
 
@@ -49,13 +51,22 @@ class InboxViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshStatus() {
         val ctx = getApplication<Application>()
+        val isDefault = SmsPermissions.isDefaultSmsApp(ctx)
         _ui.value = _ui.value.copy(
-            isDefaultSms = SmsPermissions.isDefaultSmsApp(ctx),
+            isDefaultSms = isDefault,
             hasPermissions = SmsPermissions.hasAll(ctx),
+            smsRoleAvailable = SmsPermissions.isSmsRoleAvailable(ctx),
+            defaultSmsRequestDenied = if (isDefault) false else _ui.value.defaultSmsRequestDenied,
             sims = app.simManager.getActiveSims(),
             category = categoryFilter.value,
             searchQuery = searchQuery.value,
         )
+    }
+
+    fun markDefaultSmsRequestDenied() {
+        if (!_ui.value.isDefaultSms) {
+            _ui.value = _ui.value.copy(defaultSmsRequestDenied = true)
+        }
     }
 
     fun setCategory(category: MessageCategory?) {

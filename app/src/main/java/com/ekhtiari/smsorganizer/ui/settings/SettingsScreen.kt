@@ -13,6 +13,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -40,15 +41,19 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onRequestDefaultSms: () -> Unit,
     onRequestPermissions: () -> Unit,
+    onOpenAppInfo: () -> Unit,
+    onOpenDefaultApps: () -> Unit,
 ) {
     val context = LocalContext.current
     var isDefault by remember { mutableStateOf(false) }
     var hasPerms by remember { mutableStateOf(false) }
+    var roleAvailable by remember { mutableStateOf(true) }
     var simSummary by remember { mutableStateOf("") }
 
     fun refresh() {
         isDefault = SmsPermissions.isDefaultSmsApp(context)
         hasPerms = SmsPermissions.hasAll(context)
+        roleAvailable = SmsPermissions.isSmsRoleAvailable(context)
         val app = context.applicationContext as SmsOrganizerApp
         simSummary = app.simManager.getActiveSims()
             .joinToString("\n") { "${it.label} (subId=${it.subscriptionId})" }
@@ -79,7 +84,13 @@ fun SettingsScreen(
             ListItem(
                 headlineContent = { Text("Default SMS app") },
                 supportingContent = {
-                    Text(if (isDefault) "Enabled" else "Not set — required to send & receive")
+                    Text(
+                        when {
+                            isDefault -> "Enabled"
+                            !roleAvailable -> "Role blocked for sideloaded apps — allow restricted settings first"
+                            else -> "Not set — required to send & receive"
+                        },
+                    )
                 },
                 trailingContent = {
                     if (!isDefault) {
@@ -89,6 +100,27 @@ fun SettingsScreen(
                     }
                 },
             )
+
+            if (!isDefault) {
+                Text(
+                    text = stringResource(R.string.default_sms_denied_help),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+                OutlinedButton(
+                    onClick = onOpenAppInfo,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.open_app_info))
+                }
+                OutlinedButton(
+                    onClick = onOpenDefaultApps,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.open_default_apps))
+                }
+            }
 
             ListItem(
                 headlineContent = { Text("Permissions") },

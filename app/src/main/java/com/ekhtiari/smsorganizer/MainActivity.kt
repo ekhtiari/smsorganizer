@@ -1,5 +1,6 @@
 package com.ekhtiari.smsorganizer
 
+import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
@@ -63,8 +64,13 @@ class MainActivity : ComponentActivity() {
 
                 val defaultSmsLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.StartActivityForResult(),
-                ) {
+                ) { result ->
                     inboxViewModel.refreshStatus()
+                    if (result.resultCode != Activity.RESULT_OK &&
+                        !SmsPermissions.isDefaultSmsApp(this@MainActivity)
+                    ) {
+                        inboxViewModel.markDefaultSmsRequestDenied()
+                    }
                 }
 
                 fun requestPermissions() {
@@ -72,7 +78,20 @@ class MainActivity : ComponentActivity() {
                 }
 
                 fun requestDefaultSms() {
+                    // Grant runtime SMS permissions first — some OEMs deny ROLE_SMS otherwise.
+                    if (!SmsPermissions.hasAll(this@MainActivity)) {
+                        requestPermissions()
+                        return
+                    }
                     defaultSmsLauncher.launch(SmsPermissions.createDefaultSmsIntent(this@MainActivity))
+                }
+
+                fun openAppInfo() {
+                    startActivity(SmsPermissions.createAppDetailsIntent(this@MainActivity))
+                }
+
+                fun openDefaultApps() {
+                    startActivity(SmsPermissions.createFallbackDefaultSmsSettingsIntent(this@MainActivity))
                 }
 
                 LaunchedEffect(Unit) {
@@ -102,6 +121,8 @@ class MainActivity : ComponentActivity() {
                             onSettings = { navController.navigate("settings") },
                             onRequestDefaultSms = ::requestDefaultSms,
                             onRequestPermissions = ::requestPermissions,
+                            onOpenAppInfo = ::openAppInfo,
+                            onOpenDefaultApps = ::openDefaultApps,
                         )
                     }
                     composable(
@@ -147,6 +168,8 @@ class MainActivity : ComponentActivity() {
                             onBack = { navController.popBackStack() },
                             onRequestDefaultSms = ::requestDefaultSms,
                             onRequestPermissions = ::requestPermissions,
+                            onOpenAppInfo = ::openAppInfo,
+                            onOpenDefaultApps = ::openDefaultApps,
                         )
                     }
                 }

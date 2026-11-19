@@ -4,7 +4,10 @@
     <string name="notification_channel_messages">Messages</string>
     <string name="notification_channel_otp">OTP codes</string>
     <string name="default_sms_prompt">Set SMS Organizer as your default SMS app to send and organize messages.</string>
+    <string name="default_sms_denied_help">Android blocked this because the app was installed from an APK (sideloaded). Open App info → ⋮ menu → Allow restricted settings, then try again. Or set it under Settings → Apps → Default apps → SMS app.</string>
     <string name="set_default_sms">Set as default SMS app</string>
+    <string name="open_app_info">Open app info</string>
+    <string name="open_default_apps">Default apps settings</string>
     <string name="permission_required">SMS permissions are required</string>
     <string name="category_all">All</string>
     <string name="category_personal">Personal</string>

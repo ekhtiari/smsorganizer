@@ -17,6 +17,14 @@ Android SMS app inspired by the retired Microsoft SMS Organizer.
 - Set this app as the **default SMS app** for full send/receive
 - Grant SMS, phone, contacts, and notification permissions
 
+### Sideloaded APK / “denied default SMS app”
+
+Android 13+ (especially 15) blocks SMS role for apps not installed from Play Store until you allow restricted settings:
+
+1. Open **Settings → Apps → SMS Organizer**
+2. Tap the **⋮** menu → **Allow restricted settings**
+3. Return to the app and tap **Set as default SMS app**, or choose it under **Settings → Apps → Default apps → SMS app**
+
 ## Build locally
 
 ```bash
