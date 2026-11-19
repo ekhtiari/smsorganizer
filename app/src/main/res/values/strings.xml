@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SMS Organizer</string>
+    <string name="notification_channel_messages">Messages</string>
+    <string name="notification_channel_otp">OTP codes</string>
+    <string name="default_sms_prompt">Set SMS Organizer as your default SMS app to send and organize messages.</string>
+    <string name="set_default_sms">Set as default SMS app</string>
+    <string name="permission_required">SMS permissions are required</string>
+    <string name="category_all">All</string>
+    <string name="category_personal">Personal</string>
+    <string name="category_transactions">Transactions</string>
+    <string name="category_offers">Offers</string>
+    <string name="category_otp">OTP</string>
+    <string name="copy_otp">Copy code</string>
+    <string name="otp_copied">Code copied</string>
+    <string name="new_message">New message</string>
+    <string name="type_message">Type a message</string>
+    <string name="send">Send</string>
+    <string name="search">Search messages</string>
+    <string name="settings">Settings</string>
+    <string name="sim_slot">SIM %1$d</string>
+    <string name="choose_sim">Choose SIM</string>
+    <string name="no_conversations">No conversations yet</string>
+    <string name="reply">Reply</string>
+</resources>
