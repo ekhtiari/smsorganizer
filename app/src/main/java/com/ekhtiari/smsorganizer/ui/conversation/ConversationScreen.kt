@@ -4,6 +4,12 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,15 +34,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -45,6 +56,7 @@ import com.ekhtiari.smsorganizer.R
 import com.ekhtiari.smsorganizer.domain.MessageCategory
 import com.ekhtiari.smsorganizer.domain.SmsMessage
 import com.ekhtiari.smsorganizer.ui.components.formatMessageTime
+import com.ekhtiari.smsorganizer.ui.theme.SoftMotion
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,6 +70,12 @@ fun ConversationScreen(
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val context = LocalContext.current
+    val sendEnabled = ui.draft.isNotBlank() && !ui.sending
+    val sendScale by animateFloatAsState(
+        targetValue = if (sendEnabled) 1f else 0.92f,
+        animationSpec = SoftMotion.tweenSoft(SoftMotion.FastMs),
+        label = "sendScale",
+    )
 
     LaunchedEffect(threadId, address) {
         viewModel.load(threadId, address)
@@ -89,8 +107,12 @@ fun ConversationScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
             )
         },
+        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -114,11 +136,20 @@ fun ConversationScreen(
                             clipboard.setPrimaryClip(ClipData.newPlainText("OTP", code))
                             Toast.makeText(context, R.string.otp_copied, Toast.LENGTH_SHORT).show()
                         },
+                        modifier = Modifier.animateItem(
+                            fadeInSpec = SoftMotion.tweenSoft(SoftMotion.FastMs),
+                            fadeOutSpec = SoftMotion.tweenSoft(SoftMotion.FastMs),
+                            placementSpec = SoftMotion.tweenSoft(),
+                        ),
                     )
                 }
             }
 
-            if (ui.sims.size > 1) {
+            AnimatedVisibility(
+                visible = ui.sims.size > 1,
+                enter = SoftMotion.fadeSlideUp(),
+                exit = SoftMotion.fadeSlideDown(),
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -135,36 +166,58 @@ fun ConversationScreen(
                 }
             }
 
-            ui.error?.let {
+            AnimatedVisibility(
+                visible = ui.error != null,
+                enter = SoftMotion.fadeSlideUp(),
+                exit = SoftMotion.fadeSlideDown(),
+            ) {
                 Text(
-                    text = it,
+                    text = ui.error.orEmpty(),
                     color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Surface(
+                tonalElevation = 2.dp,
+                color = MaterialTheme.colorScheme.surface,
             ) {
-                TextField(
-                    value = ui.draft,
-                    onValueChange = viewModel::updateDraft,
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text(stringResource(R.string.type_message)) },
-                    maxLines = 4,
-                )
-                IconButton(
-                    onClick = viewModel::send,
-                    enabled = ui.draft.isNotBlank() && !ui.sending,
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .animateContentSize(animationSpec = SoftMotion.tweenSoft(SoftMotion.FastMs)),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Send,
-                        contentDescription = stringResource(R.string.send),
-                        tint = MaterialTheme.colorScheme.primary,
+                    TextField(
+                        value = ui.draft,
+                        onValueChange = viewModel::updateDraft,
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text(stringResource(R.string.type_message)) },
+                        maxLines = 4,
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                        ),
+                        shape = RoundedCornerShape(20.dp),
                     )
+                    IconButton(
+                        onClick = viewModel::send,
+                        enabled = sendEnabled,
+                        modifier = Modifier.scale(sendScale),
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Send,
+                            contentDescription = stringResource(R.string.send),
+                            tint = if (sendEnabled) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -175,13 +228,14 @@ fun ConversationScreen(
 private fun MessageBubble(
     message: SmsMessage,
     onCopyOtp: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val outgoing = message.type == SmsMessage.TYPE_SENT ||
         message.type == SmsMessage.TYPE_OUTBOX ||
         message.type == SmsMessage.TYPE_QUEUED
 
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = if (outgoing) Arrangement.End else Arrangement.Start,
     ) {
         Column(
@@ -190,9 +244,15 @@ private fun MessageBubble(
                 .background(
                     color = if (outgoing) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(
+                        topStart = 18.dp,
+                        topEnd = 18.dp,
+                        bottomStart = if (outgoing) 18.dp else 4.dp,
+                        bottomEnd = if (outgoing) 4.dp else 18.dp,
+                    ),
                 )
-                .padding(12.dp),
+                .padding(12.dp)
+                .animateContentSize(animationSpec = SoftMotion.tweenSoft(SoftMotion.FastMs)),
         ) {
             Text(
                 text = message.body,
@@ -216,8 +276,13 @@ private fun MessageBubble(
                     )
                 }
             }
-            if (message.category == MessageCategory.OTP && message.otpCode != null) {
-                TextButton(onClick = { onCopyOtp(message.otpCode) }) {
+            AnimatedVisibility(
+                visible = message.category == MessageCategory.OTP && message.otpCode != null,
+                enter = fadeIn(SoftMotion.tweenSoft(SoftMotion.FastMs)) +
+                    scaleIn(animationSpec = SoftMotion.tweenSoft(SoftMotion.FastMs), initialScale = 0.94f),
+                exit = fadeOut(SoftMotion.tweenSoft(SoftMotion.FastMs)),
+            ) {
+                TextButton(onClick = { message.otpCode?.let(onCopyOtp) }) {
                     Text(stringResource(R.string.copy_otp) + " ${message.otpCode}")
                 }
             }

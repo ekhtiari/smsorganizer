@@ -31,6 +31,7 @@ import com.ekhtiari.smsorganizer.ui.inbox.InboxScreen
 import com.ekhtiari.smsorganizer.ui.inbox.InboxViewModel
 import com.ekhtiari.smsorganizer.ui.settings.SettingsScreen
 import com.ekhtiari.smsorganizer.ui.theme.SmsOrganizerTheme
+import com.ekhtiari.smsorganizer.ui.theme.SoftMotion
 import com.ekhtiari.smsorganizer.util.SmsPermissions
 
 class MainActivity : ComponentActivity() {
@@ -108,7 +109,14 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                NavHost(navController = navController, startDestination = "inbox") {
+                NavHost(
+                    navController = navController,
+                    startDestination = "inbox",
+                    enterTransition = { SoftMotion.enterForward() },
+                    exitTransition = { SoftMotion.exitForward() },
+                    popEnterTransition = { SoftMotion.enterPop() },
+                    popExitTransition = { SoftMotion.exitPop() },
+                ) {
                     composable("inbox") {
                         InboxScreen(
                             viewModel = inboxViewModel,

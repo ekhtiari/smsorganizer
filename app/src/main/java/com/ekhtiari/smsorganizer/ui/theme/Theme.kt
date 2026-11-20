@@ -12,41 +12,47 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-private val GreenPrimary = Color(0xFF1B7A5A)
-private val GreenDark = Color(0xFF0B3D2E)
-private val GreenContainer = Color(0xFFD4EFE4)
-private val AmberAccent = Color(0xFFC47B16)
-private val SurfaceLight = Color(0xFFF3F7F5)
-private val SurfaceDark = Color(0xFF101814)
+private val SkyPrimary = Color(0xFF3D9BE8)
+private val SkyDeep = Color(0xFF0A3A5C)
+private val SkyContainer = Color(0xFFD6EBFA)
+private val SlateSecondary = Color(0xFF5B7C99)
+private val SurfaceLight = Color(0xFFF4F8FC)
+private val SurfaceDark = Color(0xFF0C141C)
 
 private val LightColors = lightColorScheme(
-    primary = GreenPrimary,
+    primary = SkyPrimary,
     onPrimary = Color.White,
-    primaryContainer = GreenContainer,
-    onPrimaryContainer = GreenDark,
-    secondary = AmberAccent,
+    primaryContainer = SkyContainer,
+    onPrimaryContainer = SkyDeep,
+    secondary = SlateSecondary,
     onSecondary = Color.White,
+    secondaryContainer = Color(0xFFD9E6F0),
+    onSecondaryContainer = Color(0xFF1A2F40),
     background = SurfaceLight,
-    onBackground = Color(0xFF12201A),
+    onBackground = Color(0xFF12202A),
     surface = Color.White,
-    onSurface = Color(0xFF12201A),
-    surfaceVariant = Color(0xFFE2EDE8),
-    onSurfaceVariant = Color(0xFF3E5249),
+    onSurface = Color(0xFF12202A),
+    surfaceVariant = Color(0xFFE3EEF6),
+    onSurfaceVariant = Color(0xFF4A5F70),
+    outline = Color(0xFF8AA0B2),
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFF6BC9A4),
-    onPrimary = GreenDark,
-    primaryContainer = Color(0xFF145C44),
-    onPrimaryContainer = GreenContainer,
-    secondary = Color(0xFFE0A45A),
-    onSecondary = Color(0xFF3A2500),
+    primary = Color(0xFF8BCAEF),
+    onPrimary = SkyDeep,
+    primaryContainer = Color(0xFF1A4A6E),
+    onPrimaryContainer = SkyContainer,
+    secondary = Color(0xFF9BB4C9),
+    onSecondary = Color(0xFF0E1F2C),
+    secondaryContainer = Color(0xFF2A3F50),
+    onSecondaryContainer = Color(0xFFD9E6F0),
     background = SurfaceDark,
-    onBackground = Color(0xFFE4EEE9),
-    surface = Color(0xFF16211C),
-    onSurface = Color(0xFFE4EEE9),
-    surfaceVariant = Color(0xFF2A3832),
-    onSurfaceVariant = Color(0xFFB8C9C0),
+    onBackground = Color(0xFFE4EEF5),
+    surface = Color(0xFF121C26),
+    onSurface = Color(0xFFE4EEF5),
+    surfaceVariant = Color(0xFF1E2D3A),
+    onSurfaceVariant = Color(0xFFA8BCCB),
+    outline = Color(0xFF6A8194),
 )
 
 private val AppTypography = Typography(

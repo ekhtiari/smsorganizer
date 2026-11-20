@@ -1,5 +1,7 @@
 package com.ekhtiari.smsorganizer.ui.settings
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +19,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.ekhtiari.smsorganizer.BuildConfig
 import com.ekhtiari.smsorganizer.R
 import com.ekhtiari.smsorganizer.SmsOrganizerApp
+import com.ekhtiari.smsorganizer.ui.theme.SoftMotion
 import com.ekhtiari.smsorganizer.util.SmsPermissions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -71,14 +75,19 @@ fun SettingsScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
             )
         },
+        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
+                .padding(16.dp)
+                .animateContentSize(animationSpec = SoftMotion.tweenSoft()),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             ListItem(
@@ -101,24 +110,30 @@ fun SettingsScreen(
                 },
             )
 
-            if (!isDefault) {
-                Text(
-                    text = stringResource(R.string.default_sms_denied_help),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
-                OutlinedButton(
-                    onClick = onOpenAppInfo,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.open_app_info))
-                }
-                OutlinedButton(
-                    onClick = onOpenDefaultApps,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.open_default_apps))
+            AnimatedVisibility(
+                visible = !isDefault,
+                enter = SoftMotion.fadeSlideUp(),
+                exit = SoftMotion.fadeSlideDown(),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.default_sms_denied_help),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                    OutlinedButton(
+                        onClick = onOpenAppInfo,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.open_app_info))
+                    }
+                    OutlinedButton(
+                        onClick = onOpenDefaultApps,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.open_default_apps))
+                    }
                 }
             }
 
