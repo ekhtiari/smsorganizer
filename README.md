@@ -31,7 +31,7 @@ Android 13+ (especially 15) blocks SMS role for apps not installed from Play Sto
 ./gradlew assembleDebug
 ```
 
-APK: `app/build/outputs/apk/debug/app-debug.apk`
+APK: `app/build/outputs/apk/debug/SMS-Organizer-<version>-debug.apk`
 
 ## CI
 

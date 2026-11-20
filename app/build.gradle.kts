@@ -52,6 +52,14 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    // APK file name: SMS-Organizer-1.0.1.apk / SMS-Organizer-1.0.1-debug.apk
+    applicationVariants.configureEach {
+        outputs.configureEach {
+            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            output.outputFileName = "SMS-Organizer-${versionName}.apk"
+        }
+    }
 }
 
 dependencies {
