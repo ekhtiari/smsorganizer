@@ -13,6 +13,8 @@ import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ekhtiari.smsorganizer.BuildConfig
 import com.ekhtiari.smsorganizer.R
 import com.ekhtiari.smsorganizer.SmsOrganizerApp
+import com.ekhtiari.smsorganizer.ui.components.ExpressiveDialogIcon
 import com.ekhtiari.smsorganizer.ui.components.rememberUiHaptics
 
 /** In-app prompt for a newer GitHub release. Renders nothing when no update is pending. */
@@ -50,6 +53,7 @@ fun UpdatePrompt() {
     )
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun UpdatePromptDialog(
     versionName: String,
@@ -65,24 +69,24 @@ internal fun UpdatePromptDialog(
     )
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                Icons.Outlined.SystemUpdate,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+        icon = { ExpressiveDialogIcon(Icons.Outlined.SystemUpdate) },
+        title = {
+            Text(
+                stringResource(R.string.update_available_title),
+                style = MaterialTheme.typography.headlineSmallEmphasized,
             )
         },
-        title = { Text(stringResource(R.string.update_available_title)) },
         text = {
             Text(
                 stringResource(
                     R.string.update_available_body,
-                    versionName,
-                    currentVersion,
+                    ltrIsolate(versionName),
+                    ltrIsolate(currentVersion),
                 ),
+                style = MaterialTheme.typography.bodyLarge,
             )
         },
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = MaterialTheme.shapes.extraExtraLarge,
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         confirmButton = {
             Button(
@@ -90,6 +94,7 @@ internal fun UpdatePromptDialog(
                     haptics.click()
                     onConfirm()
                 },
+                shapes = ButtonDefaults.shapes(),
             ) {
                 Icon(
                     if (directApk) Icons.Outlined.Download else Icons.Outlined.OpenInNew,
@@ -107,6 +112,9 @@ internal fun UpdatePromptDialog(
         },
     )
 }
+
+/** Keeps tokens like 1.0.8 from flipping when they sit inside a Persian sentence. */
+private fun ltrIsolate(value: String): String = "\u2066$value\u2069"
 
 internal fun openUpdateUrl(context: Context, url: String): Boolean {
     if (!url.startsWith("https://")) return false

@@ -6,11 +6,9 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,7 +33,6 @@ import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.Password
@@ -47,34 +44,41 @@ import androidx.compose.material.icons.outlined.Sms
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconButtonShapes
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryScrollableTabRow
+import androidx.compose.material3.MediumFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
@@ -86,12 +90,19 @@ import com.ekhtiari.smsorganizer.domain.MessageCategory
 import com.ekhtiari.smsorganizer.ui.components.AvatarCircle
 import com.ekhtiari.smsorganizer.ui.components.CategoryPill
 import com.ekhtiari.smsorganizer.ui.components.EmptyState
+import com.ekhtiari.smsorganizer.ui.components.ExpressiveDialogIcon
+import com.ekhtiari.smsorganizer.ui.components.LoadingState
+import com.ekhtiari.smsorganizer.ui.components.expressivePress
 import com.ekhtiari.smsorganizer.ui.components.formatRelativeTime
 import com.ekhtiari.smsorganizer.ui.components.rememberUiHaptics
 import com.ekhtiari.smsorganizer.ui.components.warmFieldColors
+import com.ekhtiari.smsorganizer.ui.theme.LocalReducedMotion
 import com.ekhtiari.smsorganizer.ui.theme.SoftMotion
+import com.ekhtiari.smsorganizer.ui.theme.sharedWith
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.remember
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun InboxScreen(
     viewModel: InboxViewModel,
@@ -102,6 +113,7 @@ fun InboxScreen(
     onRequestPermissions: () -> Unit,
     onOpenAppInfo: () -> Unit,
     onOpenDefaultApps: () -> Unit,
+    sharedScope: AnimatedVisibilityScope? = null,
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val conversations by viewModel.conversations.collectAsStateWithLifecycle()
@@ -112,23 +124,31 @@ fun InboxScreen(
     if (ui.confirmDeleteThreadId != null) {
         AlertDialog(
             onDismissRequest = viewModel::cancelDeleteConversation,
-            title = { Text(stringResource(R.string.delete_conversation)) },
+            icon = {
+                ExpressiveDialogIcon(
+                    icon = Icons.Outlined.Delete,
+                    container = MaterialTheme.colorScheme.errorContainer,
+                    content = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            },
+            title = {
+                Text(
+                    stringResource(R.string.delete_conversation),
+                    style = MaterialTheme.typography.titleLargeEmphasized,
+                )
+            },
             text = { Text(stringResource(R.string.delete_conversation_confirm)) },
-            shape = MaterialTheme.shapes.extraLarge,
+            shape = MaterialTheme.shapes.extraExtraLarge,
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = viewModel::confirmDeleteConversation,
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
+                    shapes = ButtonDefaults.shapes(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
                     ),
                 ) {
-                    Icon(
-                        Icons.Outlined.Delete,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
                     Text(stringResource(R.string.delete))
                 }
             },
@@ -161,10 +181,11 @@ fun InboxScreen(
         onOpenDefaultApps = onOpenDefaultApps,
         onDismissPermission = viewModel::dismissPermissionBanner,
         onDismissDefaultSms = viewModel::dismissDefaultSmsBanner,
+        sharedScope = sharedScope,
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun InboxContent(
     ui: InboxUiState,
@@ -183,28 +204,47 @@ fun InboxContent(
     onOpenDefaultApps: () -> Unit,
     onDismissPermission: () -> Unit,
     onDismissDefaultSms: () -> Unit,
+    sharedScope: AnimatedVisibilityScope? = null,
 ) {
     val haptics = rememberUiHaptics()
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val reduce = LocalReducedMotion.current
+    var toolbarExpanded by rememberSaveable { mutableStateOf(true) }
+    val scrollAway = with(FloatingToolbarDefaults) {
+        Modifier.floatingToolbarVerticalNestedScroll(
+            expanded = toolbarExpanded,
+            onExpand = { toolbarExpanded = true },
+            onCollapse = { toolbarExpanded = false },
+        )
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            MediumFlexibleTopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        BoxBrand()
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = stringResource(R.string.app_name),
-                            style = MaterialTheme.typography.titleLarge,
-                        )
-                    }
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.headlineMediumEmphasized,
+                    )
+                },
+                subtitle = {
+                    Text(
+                        text = stringResource(categoryLabel(ui.category)),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                 },
                 actions = {
-                    IconButton(onClick = {
-                        haptics.click()
-                        onSettings()
-                    }) {
+                    IconButton(
+                        onClick = {
+                            haptics.click()
+                            onSettings()
+                        },
+                        shapes = IconButtonShapes(
+                            shape = MaterialTheme.shapes.extraLarge,
+                            pressedShape = MaterialTheme.shapes.small,
+                        ),
+                    ) {
                         Icon(
                             Icons.Outlined.Settings,
                             contentDescription = stringResource(R.string.settings),
@@ -213,32 +253,52 @@ fun InboxContent(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    subtitleContentColor = MaterialTheme.colorScheme.primary,
                     actionIconContentColor = MaterialTheme.colorScheme.onSurface,
                 ),
             )
         },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = {
-                    haptics.click()
-                    onCompose()
-                },
-                icon = {
-                    Icon(
-                        Icons.Rounded.Edit,
-                        contentDescription = null,
-                    )
-                },
-                text = { Text(stringResource(R.string.new_message)) },
-                shape = MaterialTheme.shapes.large,
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                elevation = FloatingActionButtonDefaults.elevation(
-                    defaultElevation = 3.dp,
-                    pressedElevation = 6.dp,
-                ),
-            )
+        bottomBar = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                HorizontalFloatingToolbar(
+                    expanded = toolbarExpanded,
+                    floatingActionButton = {
+                        FloatingToolbarDefaults.VibrantFloatingActionButton(
+                            onClick = {
+                                haptics.click()
+                                onCompose()
+                            },
+                            shape = MaterialTheme.shapes.largeIncreased,
+                        ) {
+                            Icon(
+                                Icons.Rounded.Edit,
+                                contentDescription = stringResource(R.string.new_message),
+                            )
+                        }
+                    },
+                    colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
+                    shape = MaterialTheme.shapes.extraLarge,
+                ) {
+                    CategoryTabsSpec.forEach { tab ->
+                        CategoryToolButton(
+                            selected = ui.category == tab.category,
+                            icon = tab.icon,
+                            label = stringResource(tab.labelRes),
+                            onClick = {
+                                haptics.tick()
+                                onCategory(tab.category)
+                            },
+                        )
+                    }
+                }
+            }
         },
         containerColor = MaterialTheme.colorScheme.surface,
     ) { padding ->
@@ -249,8 +309,8 @@ fun InboxContent(
         ) {
             AnimatedVisibility(
                 visible = !ui.hasPermissions && !ui.permissionBannerDismissed,
-                enter = SoftMotion.fadeSlideUp(),
-                exit = SoftMotion.fadeSlideDown(),
+                enter = SoftMotion.fadeSlideUp(reduce),
+                exit = SoftMotion.fadeSlideDown(reduce),
             ) {
                 Banner(
                     icon = Icons.Outlined.Sms,
@@ -263,8 +323,8 @@ fun InboxContent(
 
             AnimatedVisibility(
                 visible = ui.hasPermissions && !ui.isDefaultSms && !ui.defaultSmsBannerDismissed,
-                enter = SoftMotion.fadeSlideUp(),
-                exit = SoftMotion.fadeSlideDown(),
+                enter = SoftMotion.fadeSlideUp(reduce),
+                exit = SoftMotion.fadeSlideDown(reduce),
             ) {
                 Banner(
                     icon = Icons.Outlined.Info,
@@ -292,7 +352,7 @@ fun InboxContent(
                     Icon(
                         Icons.Outlined.SimCard,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.size(16.dp),
                     )
                     Text(
@@ -309,7 +369,7 @@ fun InboxContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .animateContentSize(animationSpec = SoftMotion.tweenSoft()),
+                    .animateContentSize(animationSpec = SoftMotion.spatial(reduce)),
                 placeholder = { Text(stringResource(R.string.search)) },
                 leadingIcon = {
                     Icon(Icons.Outlined.Search, contentDescription = null)
@@ -331,63 +391,49 @@ fun InboxContent(
                 shape = MaterialTheme.shapes.extraLarge,
             )
 
-            CategoryTabs(
-                selected = ui.category,
-                onSelect = { category ->
-                    haptics.tick()
-                    onCategory(category)
-                },
-            )
-
             AnimatedContent(
                 targetState = ui.category,
                 transitionSpec = SoftMotion.tabContentTransform(
                     indexOf = ::categoryIndex,
                     rtl = rtl,
+                    reduce = reduce,
                 ),
                 label = "inboxTabContent",
                 modifier = Modifier.weight(1f),
-            ) {
-                if (conversations.isEmpty()) {
-                    EmptyState(
+            ) { category ->
+                when {
+                    ui.loading && conversations.isEmpty() -> LoadingState()
+                    conversations.isEmpty() -> EmptyState(
                         title = stringResource(R.string.no_conversations),
                         hint = stringResource(R.string.empty_conversations_hint),
                         icon = Icons.AutoMirrored.Outlined.Chat,
                     )
-                } else {
-                    LazyColumn(
-                        contentPadding = PaddingValues(bottom = 104.dp),
+                    else -> LazyColumn(
+                        modifier = scrollAway,
+                        contentPadding = PaddingValues(bottom = 24.dp, top = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         itemsIndexed(
                             items = conversations,
-                            key = { _, item -> item.threadId },
+                            key = { _, item -> "${category ?: "all"}-${item.threadId}" },
                         ) { index, conversation ->
-                            Column(
+                            ConversationRow(
+                                conversation = conversation,
+                                position = groupPosition(index, conversations.lastIndex),
+                                onClick = {
+                                    haptics.click()
+                                    onOpenThread(conversation.threadId, conversation.address)
+                                },
+                                onArchive = { onArchive(conversation.threadId) },
+                                onDelete = { onDelete(conversation.threadId) },
+                                onCopyOtp = onCopyOtp,
+                                sharedScope = sharedScope,
                                 modifier = Modifier.animateItem(
-                                    fadeInSpec = SoftMotion.tweenSoft(
-                                        SoftMotion.FastMs + index.coerceAtMost(8) * SoftMotion.StaggerMs,
-                                    ),
-                                    fadeOutSpec = SoftMotion.tweenSoft(SoftMotion.FastMs),
-                                    placementSpec = SoftMotion.tweenSoft(),
+                                    fadeInSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
+                                    fadeOutSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
+                                    placementSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
                                 ),
-                            ) {
-                                ConversationRow(
-                                    conversation = conversation,
-                                    onClick = {
-                                        haptics.click()
-                                        onOpenThread(conversation.threadId, conversation.address)
-                                    },
-                                    onArchive = { onArchive(conversation.threadId) },
-                                    onDelete = { onDelete(conversation.threadId) },
-                                    onCopyOtp = onCopyOtp,
-                                )
-                                if (index != conversations.lastIndex) {
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(start = 76.dp, end = 16.dp),
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
-                                    )
-                                }
-                            }
+                            )
                         }
                     }
                 }
@@ -396,24 +442,64 @@ fun InboxContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun BoxBrand() {
-    Box(
+private fun CategoryToolButton(
+    selected: Boolean,
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+) {
+    val container by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0f)
+        },
+        animationSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
+        label = "categoryContainer",
+    )
+    val content by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            LocalContentColor.current
+        },
+        animationSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
+        label = "categoryContent",
+    )
+    Surface(
+        onClick = onClick,
+        shape = if (selected) MaterialTheme.shapes.extraLarge else MaterialTheme.shapes.large,
+        color = container,
+        contentColor = content,
         modifier = Modifier
-            .size(36.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.primaryContainer),
-        contentAlignment = Alignment.Center,
+            .padding(horizontal = 2.dp)
+            .height(48.dp)
+            .semantics {
+                role = Role.Tab
+                this.selected = selected
+            },
     ) {
-        Icon(
-            Icons.Outlined.Forum,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.size(20.dp),
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = if (selected) 12.dp else 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(icon, contentDescription = label, modifier = Modifier.size(22.dp))
+            AnimatedVisibility(visible = selected) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLargeEmphasized,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun Banner(
     icon: ImageVector,
@@ -426,33 +512,28 @@ private fun Banner(
     onTertiaryAction: (() -> Unit)? = null,
     onClose: (() -> Unit)? = null,
 ) {
+    val reduce = LocalReducedMotion.current
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .animateContentSize(animationSpec = SoftMotion.tweenSoft()),
+            .animateContentSize(animationSpec = SoftMotion.spatial(reduce)),
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.extraLargeIncreased,
     ) {
-        Column(modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 8.dp)) {
+        Column(modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 14.dp, bottom = 8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top,
             ) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .padding(top = 2.dp)
-                        .size(20.dp),
-                )
+                com.ekhtiari.smsorganizer.ui.components.TonalIcon(icon = icon)
                 Text(
                     text = text,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier
                         .weight(1f)
-                        .padding(start = 10.dp, end = 4.dp),
+                        .padding(start = 12.dp, end = 4.dp, top = 8.dp),
                 )
                 if (onClose != null) {
                     IconButton(onClick = onClose) {
@@ -493,103 +574,96 @@ private val CategoryTabsSpec = listOf(
 private fun categoryIndex(category: MessageCategory?): Int =
     CategoryTabsSpec.indexOfFirst { it.category == category }.coerceAtLeast(0)
 
-@OptIn(ExperimentalMaterial3Api::class)
+private fun categoryLabel(category: MessageCategory?): Int =
+    CategoryTabsSpec.first { it.category == category }.labelRes
+
+private enum class GroupPosition { Single, Top, Middle, Bottom }
+
+private fun groupPosition(index: Int, last: Int): GroupPosition = when {
+    last == 0 -> GroupPosition.Single
+    index == 0 -> GroupPosition.Top
+    index == last -> GroupPosition.Bottom
+    else -> GroupPosition.Middle
+}
+
 @Composable
-private fun CategoryTabs(
-    selected: MessageCategory?,
-    onSelect: (MessageCategory?) -> Unit,
-) {
-    val selectedIndex = categoryIndex(selected)
-    PrimaryScrollableTabRow(
-        selectedTabIndex = selectedIndex,
-        edgePadding = 12.dp,
-        containerColor = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.primary,
-        divider = {
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-            )
-        },
-    ) {
-        CategoryTabsSpec.forEachIndexed { index, tab ->
-            val isSelected = selectedIndex == index
-            Tab(
-                selected = isSelected,
-                onClick = { onSelect(tab.category) },
-                selectedContentColor = MaterialTheme.colorScheme.primary,
-                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                text = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Icon(
-                            tab.icon,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Text(
-                            text = stringResource(tab.labelRes),
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                            maxLines = 1,
-                        )
-                    }
-                },
-            )
-        }
+private fun groupedShape(position: GroupPosition): RoundedCornerShape {
+    val outer = 28.dp
+    val inner = 8.dp
+    return when (position) {
+        GroupPosition.Single -> RoundedCornerShape(outer)
+        GroupPosition.Top -> RoundedCornerShape(
+            topStart = outer,
+            topEnd = outer,
+            bottomStart = inner,
+            bottomEnd = inner,
+        )
+        GroupPosition.Middle -> RoundedCornerShape(inner)
+        GroupPosition.Bottom -> RoundedCornerShape(
+            topStart = inner,
+            topEnd = inner,
+            bottomStart = outer,
+            bottomEnd = outer,
+        )
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ConversationRow(
     conversation: Conversation,
+    position: GroupPosition,
     onClick: () -> Unit,
     onArchive: () -> Unit,
     onDelete: () -> Unit,
     onCopyOtp: (String) -> Unit,
+    sharedScope: AnimatedVisibilityScope?,
     modifier: Modifier = Modifier,
 ) {
     val unread = conversation.unreadCount > 0
-    Row(
+    val interaction = remember { MutableInteractionSource() }
+    val reduce = LocalReducedMotion.current
+    Surface(
+        onClick = onClick,
+        shape = groupedShape(position),
+        color = if (unread) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerLow
+        },
+        interactionSource = interaction,
         modifier = modifier
-            .fillMaxWidth()
-            .background(
-                if (unread) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.06f)
-                } else {
-                    MaterialTheme.colorScheme.surface
-                },
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 10.dp)
-            .animateContentSize(animationSpec = SoftMotion.tweenSoft(SoftMotion.FastMs)),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 16.dp)
+            .expressivePress(interaction)
+            .animateContentSize(animationSpec = SoftMotion.spatial(reduce, fast = true)),
     ) {
-        AvatarCircle(
-            name = conversation.displayName,
-            modifier = Modifier.padding(start = 8.dp),
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = conversation.displayName,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        textDirection = TextDirection.Content,
-                    ),
-                    fontWeight = if (unread) FontWeight.Bold else FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                AnimatedVisibility(
-                    visible = unread,
-                    enter = fadeIn(SoftMotion.tweenSoft(SoftMotion.FastMs)),
-                    exit = fadeOut(SoftMotion.tweenSoft(SoftMotion.FastMs)),
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AvatarCircle(
+                name = conversation.displayName,
+                modifier = Modifier.sharedWith("avatar-${conversation.threadId}", sharedScope),
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = conversation.displayName,
+                        style = MaterialTheme.typography.titleMediumEmphasized.copy(
+                            textDirection = TextDirection.Content,
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .weight(1f)
+                            .sharedWith(
+                                "title-${conversation.threadId}",
+                                sharedScope,
+                                bounds = true,
+                            ),
+                    )
+                    if (unread) {
                         Badge(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -598,83 +672,97 @@ private fun ConversationRow(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                     }
+                    Text(
+                        text = formatRelativeTime(conversation.date),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (unread) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
                 }
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = formatRelativeTime(conversation.date),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (unread) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    modifier = Modifier.padding(start = 8.dp),
+                    text = conversation.snippet,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        textDirection = TextDirection.Content,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    CategoryPill(conversation.category)
+                    if (conversation.subscriptionId >= 0) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Icon(
+                                Icons.Outlined.SimCard,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.size(14.dp),
+                            )
+                            Text(
+                                text = "SIM",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    conversation.otpCode?.let { code ->
+                        TextButton(
+                            onClick = { onCopyOtp(code) },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            modifier = Modifier.height(32.dp),
+                        ) {
+                            Icon(
+                                Icons.Outlined.ContentCopy,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(stringResource(R.string.copy_otp) + " $code")
+                        }
+                    }
+                }
+            }
+            IconButton(
+                onClick = onArchive,
+                shapes = IconButtonShapes(
+                    shape = MaterialTheme.shapes.large,
+                    pressedShape = MaterialTheme.shapes.extraSmall,
+                ),
+                colors = IconButtonDefaults.iconButtonColors(
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+            ) {
+                Icon(
+                    Icons.Outlined.Archive,
+                    contentDescription = stringResource(R.string.archive),
                 )
             }
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = conversation.snippet,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    textDirection = TextDirection.Content,
+            IconButton(
+                onClick = onDelete,
+                shapes = IconButtonShapes(
+                    shape = MaterialTheme.shapes.large,
+                    pressedShape = MaterialTheme.shapes.extraSmall,
                 ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = if (unread) FontWeight.Medium else FontWeight.Normal,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                colors = IconButtonDefaults.iconButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
             ) {
-                CategoryPill(conversation.category)
-                if (conversation.subscriptionId >= 0) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        Icon(
-                            Icons.Outlined.SimCard,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(14.dp),
-                        )
-                        Text(
-                            text = "SIM",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                conversation.otpCode?.let { code ->
-                    TextButton(
-                        onClick = { onCopyOtp(code) },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                        modifier = Modifier.height(32.dp),
-                    ) {
-                        Icon(
-                            Icons.Outlined.ContentCopy,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(stringResource(R.string.copy_otp) + " $code")
-                    }
-                }
+                Icon(
+                    Icons.Outlined.Delete,
+                    contentDescription = stringResource(R.string.delete),
+                )
             }
-        }
-        IconButton(onClick = onArchive) {
-            Icon(
-                Icons.Outlined.Archive,
-                contentDescription = stringResource(R.string.archive),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        IconButton(onClick = onDelete) {
-            Icon(
-                Icons.Outlined.Delete,
-                contentDescription = stringResource(R.string.delete),
-                tint = MaterialTheme.colorScheme.error,
-            )
         }
     }
 }

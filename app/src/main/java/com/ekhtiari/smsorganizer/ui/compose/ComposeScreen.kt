@@ -3,7 +3,6 @@ package com.ekhtiari.smsorganizer.ui.compose
 import android.app.Application
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,13 +11,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -26,10 +25,14 @@ import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.SimCard
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -45,7 +48,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
@@ -58,6 +60,7 @@ import com.ekhtiari.smsorganizer.domain.SimInfo
 import com.ekhtiari.smsorganizer.ui.components.AvatarCircle
 import com.ekhtiari.smsorganizer.ui.components.rememberUiHaptics
 import com.ekhtiari.smsorganizer.ui.components.warmFieldColors
+import com.ekhtiari.smsorganizer.ui.theme.LocalReducedMotion
 import com.ekhtiari.smsorganizer.ui.theme.SoftMotion
 import kotlinx.coroutines.launch
 
@@ -121,7 +124,7 @@ fun ComposeScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ComposeContent(
     address: String,
@@ -136,19 +139,26 @@ fun ComposeContent(
     onSend: () -> Unit,
 ) {
     val haptics = rememberUiHaptics()
+    val reduce = LocalReducedMotion.current
     val canSend = address.isNotBlank() && body.isNotBlank()
-    val sendScale by animateFloatAsState(
-        targetValue = if (canSend) 1f else 0.96f,
-        animationSpec = SoftMotion.tweenSoft(SoftMotion.FastMs),
-        label = "composeSendScale",
-    )
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.new_message)) },
+                title = {
+                    Text(
+                        stringResource(R.string.new_message),
+                        style = MaterialTheme.typography.titleLargeEmphasized,
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(
+                        onClick = onBack,
+                        shapes = IconButtonShapes(
+                            shape = MaterialTheme.shapes.extraLarge,
+                            pressedShape = MaterialTheme.shapes.small,
+                        ),
+                    ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back),
@@ -170,7 +180,7 @@ fun ComposeContent(
                 .fillMaxSize()
                 .padding(padding)
                 .imePadding()
-                .animateContentSize(animationSpec = SoftMotion.tweenSoft()),
+                .animateContentSize(animationSpec = SoftMotion.spatial(reduce)),
         ) {
             Column(
                 modifier = Modifier
@@ -184,7 +194,7 @@ fun ComposeContent(
                 ) {
                     AvatarCircle(
                         name = address.ifBlank { "?" },
-                        size = 44.dp,
+                        size = 52.dp,
                     )
                     TextField(
                         value = address,
@@ -196,54 +206,45 @@ fun ComposeContent(
                         },
                         singleLine = true,
                         textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            textDirection = TextDirection.Content,
+                            textDirection = TextDirection.Ltr,
                         ),
                         colors = warmFieldColors(),
-                        shape = RoundedCornerShape(20.dp),
+                        shape = MaterialTheme.shapes.extraLarge,
                     )
                 }
 
                 AnimatedVisibility(
                     visible = sims.size > 1,
-                    enter = SoftMotion.fadeSlideUp(),
-                    exit = SoftMotion.fadeSlideDown(),
+                    enter = SoftMotion.fadeSlideUp(reduce),
+                    exit = SoftMotion.fadeSlideDown(reduce),
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Icon(
-                                Icons.Outlined.SimCard,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Text(
-                                text = stringResource(R.string.choose_sim),
-                                style = MaterialTheme.typography.labelLarge,
-                            )
-                        }
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                        Text(
+                            text = stringResource(R.string.choose_sim),
+                            style = MaterialTheme.typography.titleMediumEmphasized,
+                        )
+                        ButtonGroup(
+                            overflowIndicator = { menuState ->
+                                ButtonGroupDefaults.OverflowIndicator(menuState = menuState)
+                            },
                         ) {
                             sims.forEach { sim ->
-                                FilterChip(
-                                    selected = selectedSimId == sim.subscriptionId,
-                                    onClick = {
-                                        haptics.tick()
-                                        onSelectSim(sim.subscriptionId)
+                                toggleableItem(
+                                    checked = selectedSimId == sim.subscriptionId,
+                                    label = sim.label,
+                                    onCheckedChange = { checked ->
+                                        if (checked) {
+                                            haptics.tick()
+                                            onSelectSim(sim.subscriptionId)
+                                        }
                                     },
-                                    label = { Text(sim.label) },
-                                    leadingIcon = {
+                                    icon = {
                                         Icon(
                                             Icons.Outlined.SimCard,
                                             contentDescription = null,
                                             modifier = Modifier.size(16.dp),
                                         )
                                     },
-                                    shape = RoundedCornerShape(50),
                                 )
                             }
                         }
@@ -261,13 +262,13 @@ fun ComposeContent(
                         textDirection = TextDirection.Content,
                     ),
                     colors = warmFieldColors(),
-                    shape = MaterialTheme.shapes.large,
+                    shape = MaterialTheme.shapes.extraLargeIncreased,
                 )
 
                 AnimatedVisibility(
                     visible = error != null,
-                    enter = SoftMotion.fadeSlideUp(),
-                    exit = SoftMotion.fadeSlideDown(),
+                    enter = SoftMotion.fadeSlideUp(reduce),
+                    exit = SoftMotion.fadeSlideDown(reduce),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -294,20 +295,24 @@ fun ComposeContent(
                         haptics.confirm()
                         onSend()
                     },
+                    shapes = ButtonDefaults.shapesFor(ButtonDefaults.LargeContainerHeight),
                     enabled = canSend,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
-                        .scale(sendScale),
-                    shape = MaterialTheme.shapes.large,
+                        .heightIn(min = ButtonDefaults.LargeContainerHeight),
+                    contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.LargeContainerHeight),
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.Send,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(20.dp),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.send))
+                    Text(
+                        stringResource(R.string.send),
+                        style = MaterialTheme.typography.labelLargeEmphasized,
+                    )
                 }
             }
         }
