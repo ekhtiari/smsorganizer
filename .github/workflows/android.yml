@@ -27,6 +27,15 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Configure release signing
+        id: signing
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: bash .github/scripts/configure-signing.sh
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
@@ -37,10 +46,85 @@ jobs:
         run: ./gradlew testDebugUnitTest --stacktrace
 
       - name: Build debug APK
+        env:
+          SIGNING_KEYSTORE_PATH: ${{ steps.signing.outputs.keystore_path }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_STORE_TYPE: ${{ steps.signing.outputs.store_type }}
         run: ./gradlew assembleDebug --stacktrace
 
-      - name: Build release APK (unsigned)
+      - name: Build release APK
+        env:
+          SIGNING_KEYSTORE_PATH: ${{ steps.signing.outputs.keystore_path }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_STORE_TYPE: ${{ steps.signing.outputs.store_type }}
+          REQUIRE_RELEASE_SIGNING: ${{ startsWith(github.ref, 'refs/tags/v') && 'true' || 'false' }}
         run: ./gradlew assembleRelease --stacktrace
+
+      - name: Verify APK signatures
+        if: steps.signing.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+
+          find_apksigner() {
+            local roots=()
+            if [ -n "${ANDROID_SDK_ROOT:-}" ]; then roots+=("$ANDROID_SDK_ROOT"); fi
+            if [ -n "${ANDROID_HOME:-}" ]; then roots+=("$ANDROID_HOME"); fi
+            roots+=("$HOME/Android/Sdk")
+            if [ -f local.properties ]; then
+              local sdkdir
+              sdkdir=$(sed -n 's/^sdk.dir=//p' local.properties | head -1 | sed 's/\\//g')
+              if [ -n "$sdkdir" ]; then roots+=("$sdkdir"); fi
+            fi
+            local root found
+            for root in "${roots[@]}"; do
+              if [ -d "$root/build-tools" ]; then
+                found=$(find "$root/build-tools" -type f -name apksigner | sort -V | tail -1)
+                if [ -n "$found" ]; then
+                  printf '%s\n' "$found"
+                  return 0
+                fi
+              fi
+            done
+            return 1
+          }
+
+          apksigner=$(find_apksigner) || {
+            echo "::error::apksigner not found. Checked ANDROID_SDK_ROOT, ANDROID_HOME, ~/Android/Sdk, and sdk.dir."
+            exit 1
+          }
+          echo "Using $apksigner"
+
+          cert_sha256() {
+            "$apksigner" verify --print-certs "$1" | sed -n 's/.*SHA-256 digest: //p' | head -1
+          }
+
+          scheme_v2() {
+            "$apksigner" verify --verbose "$1" | grep -Eiq 'v2 scheme.*: true'
+          }
+
+          release_apk=$(echo app/build/outputs/apk/release/SMS-Organizer-*.apk)
+          debug_apk=$(echo app/build/outputs/apk/debug/SMS-Organizer-*.apk)
+
+          for apk in "$release_apk" "$debug_apk"; do
+            echo "Verifying $apk"
+            "$apksigner" verify --verbose --print-certs "$apk"
+            if ! scheme_v2 "$apk"; then
+              echo "::error::$apk is missing an APK Signature Scheme v2 signature, so current Android versions will refuse to install it."
+              exit 1
+            fi
+          done
+
+          release_cert=$(cert_sha256 "$release_apk")
+          debug_cert=$(cert_sha256 "$debug_apk")
+          if [ -z "$release_cert" ] || [ "$release_cert" != "$debug_cert" ]; then
+            echo "::error::Debug and release APKs are signed with different certificates (release='$release_cert' debug='$debug_cert'). CI builds would not update each other."
+            exit 1
+          fi
+          echo "Debug and release APKs share certificate SHA-256 $release_cert"
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -53,7 +137,7 @@ jobs:
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: SMS-Organizer-release-unsigned
+          name: ${{ steps.signing.outputs.present == 'true' && 'SMS-Organizer-release' || 'SMS-Organizer-release-unsigned' }}
           path: app/build/outputs/apk/release/SMS-Organizer-*.apk
           if-no-files-found: error
           retention-days: 30
@@ -68,3 +152,7 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove signing keystore
+        if: always() && steps.signing.outputs.present == 'true'
+        run: rm -f "${{ steps.signing.outputs.keystore_path }}"
