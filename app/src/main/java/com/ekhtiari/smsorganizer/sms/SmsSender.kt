@@ -9,14 +9,18 @@ import androidx.core.content.ContextCompat
 import android.Manifest
 import android.content.pm.PackageManager
 import android.provider.Telephony
-import android.content.ContentValues
 
 class SmsSender(
     private val context: Context,
     private val simManager: SimManager,
 ) {
 
-    fun sendText(address: String, body: String, subscriptionId: Int?): Boolean {
+    fun sendText(
+        address: String,
+        body: String,
+        subscriptionId: Int?,
+        threadId: Long? = null,
+    ): Boolean {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS)
             != PackageManager.PERMISSION_GRANTED
         ) {
@@ -54,26 +58,44 @@ class SmsSender(
             )
         }
 
-        // Default SMS app should also write to the provider
+        // Default SMS app must write to the provider so the reply appears in-thread
         if (Telephony.Sms.getDefaultSmsPackage(context) == context.packageName) {
-            writeSentMessage(address, body, subId)
+            writeSentMessage(address, body, subId, threadId)
         }
         return true
     }
 
-    private fun writeSentMessage(address: String, body: String, subscriptionId: Int) {
-        val values = ContentValues().apply {
-            put(Telephony.Sms.ADDRESS, address)
-            put(Telephony.Sms.BODY, body)
-            put(Telephony.Sms.DATE, System.currentTimeMillis())
-            put(Telephony.Sms.READ, 1)
-            put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_SENT)
-            put(Telephony.Sms.SUBSCRIPTION_ID, subscriptionId)
+    private fun writeSentMessage(
+        address: String,
+        body: String,
+        subscriptionId: Int,
+        threadId: Long?,
+    ) {
+        val resolvedThreadId = when {
+            threadId != null && threadId > 0L -> threadId
+            else -> resolveThreadId(address)
         }
+        if (resolvedThreadId <= 0L) return
+
         try {
+            val values = SentSmsWrite.build(
+                address = address,
+                body = body,
+                dateMillis = System.currentTimeMillis(),
+                subscriptionId = subscriptionId,
+                threadId = resolvedThreadId,
+            ).toContentValues()
             context.contentResolver.insert(Telephony.Sms.Sent.CONTENT_URI, values)
         } catch (_: Exception) {
             // Provider write may fail if not default; ignore
+        }
+    }
+
+    private fun resolveThreadId(address: String): Long {
+        return try {
+            Telephony.Threads.getOrCreateThreadId(context, address)
+        } catch (_: Exception) {
+            0L
         }
     }
 

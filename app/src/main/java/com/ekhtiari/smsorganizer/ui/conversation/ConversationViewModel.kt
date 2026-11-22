@@ -75,7 +75,12 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
 
         viewModelScope.launch {
             _ui.value = state.copy(sending = true, error = null)
-            val ok = app.smsSender.sendText(state.address, body, state.selectedSimId)
+            val ok = app.smsSender.sendText(
+                address = state.address,
+                body = body,
+                subscriptionId = state.selectedSimId,
+                threadId = state.threadId,
+            )
             _ui.value = if (ok) {
                 state.copy(draft = "", sending = false)
             } else {
