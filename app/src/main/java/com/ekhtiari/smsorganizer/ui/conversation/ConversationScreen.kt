@@ -17,14 +17,17 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -56,6 +59,8 @@ import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -65,6 +70,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -77,6 +83,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ekhtiari.smsorganizer.R
 import com.ekhtiari.smsorganizer.domain.MessageCategory
+import com.ekhtiari.smsorganizer.ui.DeleteSnackbarEffect
 import com.ekhtiari.smsorganizer.domain.SimInfo
 import com.ekhtiari.smsorganizer.domain.SmsMessage
 import com.ekhtiari.smsorganizer.ui.components.AvatarCircle
@@ -98,6 +105,7 @@ fun ConversationScreen(
     threadId: Long,
     address: String,
     onBack: () -> Unit,
+    onRequestDefaultSms: () -> Unit,
     sharedScope: AnimatedVisibilityScope? = null,
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
@@ -155,6 +163,9 @@ fun ConversationScreen(
         onSelectSim = viewModel::selectSim,
         onSend = viewModel::send,
         onDelete = viewModel::requestDeleteMessage,
+        onUndoDelete = viewModel::undoDelete,
+        onDismissDeleteNotice = viewModel::dismissDeleteNotice,
+        onRequestDefaultSms = onRequestDefaultSms,
         onCopyOtp = { code ->
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             clipboard.setPrimaryClip(ClipData.newPlainText("OTP", code))
@@ -174,6 +185,9 @@ fun ConversationContent(
     onSelectSim: (Int) -> Unit,
     onSend: () -> Unit,
     onDelete: (Long) -> Unit,
+    onUndoDelete: () -> Unit = {},
+    onDismissDeleteNotice: (Long) -> Unit = {},
+    onRequestDefaultSms: () -> Unit = {},
     onCopyOtp: (String) -> Unit,
     sharedScope: AnimatedVisibilityScope? = null,
 ) {
@@ -181,6 +195,14 @@ fun ConversationContent(
     val haptics = rememberUiHaptics()
     val reduce = LocalReducedMotion.current
     val title = ui.displayName.ifBlank { ui.address }
+    val snackbarHostState = remember { SnackbarHostState() }
+    DeleteSnackbarEffect(
+        notice = ui.deleteNotice,
+        snackbarHostState = snackbarHostState,
+        onUndo = onUndoDelete,
+        onRequestDefaultSms = onRequestDefaultSms,
+        onDismiss = onDismissDeleteNotice,
+    )
 
     LaunchedEffect(messages.size, ui.loading) {
         if (!ui.loading && messages.isNotEmpty()) {
@@ -189,6 +211,7 @@ fun ConversationContent(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -255,7 +278,11 @@ fun ConversationContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .imePadding(),
+                // Scaffold padding already includes the nav bar. Consuming it lets the
+                // IME inset replace that padding instead of stacking a gap above the keyboard.
+                // With the keyboard closed, navigationBars still pads the composer.
+                .consumeWindowInsets(padding)
+                .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars)),
         ) {
             if (ui.loading && messages.isEmpty()) {
                 LoadingState(modifier = Modifier.weight(1f))

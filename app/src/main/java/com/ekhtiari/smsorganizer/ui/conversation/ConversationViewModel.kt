@@ -6,12 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.ekhtiari.smsorganizer.SmsOrganizerApp
 import com.ekhtiari.smsorganizer.domain.SimInfo
 import com.ekhtiari.smsorganizer.domain.SmsMessage
+import com.ekhtiari.smsorganizer.ui.DeleteNotice
+import com.ekhtiari.smsorganizer.ui.DeleteViewModelLogic
 import com.ekhtiari.smsorganizer.util.ContactHelper
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onEach
@@ -28,6 +30,7 @@ data class ConversationUiState(
     val sending: Boolean = false,
     val error: String? = null,
     val confirmDeleteMessageId: Long? = null,
+    val deleteNotice: DeleteNotice? = null,
     val loading: Boolean = false,
 )
 
@@ -36,7 +39,13 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
     private val app = application as SmsOrganizerApp
 
     private val _ui = MutableStateFlow(ConversationUiState())
-    val ui: StateFlow<ConversationUiState> = _ui.asStateFlow()
+    private val deletion = DeleteViewModelLogic(app.smsRepository)
+    val ui: StateFlow<ConversationUiState> = combine(_ui, deletion.state) { state, delete ->
+        state.copy(
+            confirmDeleteMessageId = delete.confirmMessageId,
+            deleteNotice = delete.notice,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ConversationUiState())
 
     private val threadIdFlow = MutableStateFlow(0L)
 
@@ -100,19 +109,17 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    fun requestDeleteMessage(messageId: Long) {
-        _ui.value = _ui.value.copy(confirmDeleteMessageId = messageId)
-    }
+    fun requestDeleteMessage(messageId: Long) = deletion.requestDeleteMessage(messageId)
 
-    fun cancelDeleteMessage() {
-        _ui.value = _ui.value.copy(confirmDeleteMessageId = null)
-    }
+    fun cancelDeleteMessage() = deletion.cancel()
 
     fun confirmDeleteMessage() {
-        val messageId = _ui.value.confirmDeleteMessageId ?: return
-        _ui.value = _ui.value.copy(confirmDeleteMessageId = null)
-        viewModelScope.launch {
-            app.smsRepository.deleteMessageNow(messageId)
-        }
+        viewModelScope.launch { deletion.confirmMessage() }
     }
+
+    fun undoDelete() {
+        viewModelScope.launch { deletion.undo() }
+    }
+
+    fun dismissDeleteNotice(id: Long) = deletion.dismiss(id)
 }
