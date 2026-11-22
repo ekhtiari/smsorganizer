@@ -12,11 +12,15 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -114,12 +118,35 @@ class MainActivity : ComponentActivity() {
                 NavHost(
                     navController = navController,
                     startDestination = "inbox",
-                    enterTransition = { SoftMotion.enterForward() },
-                    exitTransition = { SoftMotion.exitForward() },
-                    popEnterTransition = { SoftMotion.enterPop() },
-                    popExitTransition = { SoftMotion.exitPop() },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surface),
+                    enterTransition = { SoftMotion.sharedAxisZEnter() },
+                    exitTransition = { SoftMotion.sharedAxisZExit() },
+                    popEnterTransition = { SoftMotion.sharedAxisZPopEnter() },
+                    popExitTransition = { SoftMotion.sharedAxisZPopExit() },
                 ) {
-                    composable("inbox") {
+                    composable(
+                        route = "inbox",
+                        exitTransition = {
+                            when {
+                                targetState.destination.route.orEmpty().startsWith("settings") ->
+                                    SoftMotion.fadeThroughExit()
+                                targetState.destination.route.orEmpty().startsWith("compose") ->
+                                    SoftMotion.sharedAxisYExit(forward = true)
+                                else -> SoftMotion.sharedAxisZExit()
+                            }
+                        },
+                        popEnterTransition = {
+                            when {
+                                initialState.destination.route.orEmpty().startsWith("settings") ->
+                                    SoftMotion.fadeThroughEnter()
+                                initialState.destination.route.orEmpty().startsWith("compose") ->
+                                    SoftMotion.sharedAxisYEnter(forward = false)
+                                else -> SoftMotion.sharedAxisZPopEnter()
+                            }
+                        },
+                    ) {
                         InboxScreen(
                             viewModel = inboxViewModel,
                             onOpenThread = { threadId, address ->
@@ -144,6 +171,8 @@ class MainActivity : ComponentActivity() {
                                 defaultValue = ""
                             },
                         ),
+                        enterTransition = { SoftMotion.sharedAxisZEnter() },
+                        popExitTransition = { SoftMotion.sharedAxisZPopExit() },
                     ) { entry ->
                         val threadId = entry.arguments?.getLong("threadId") ?: 0L
                         val address = entry.arguments?.getString("address").orEmpty()
@@ -162,6 +191,10 @@ class MainActivity : ComponentActivity() {
                                 defaultValue = ""
                             },
                         ),
+                        enterTransition = { SoftMotion.sharedAxisYEnter(forward = true) },
+                        exitTransition = { SoftMotion.sharedAxisYExit(forward = true) },
+                        popEnterTransition = { SoftMotion.sharedAxisYEnter(forward = false) },
+                        popExitTransition = { SoftMotion.sharedAxisYExit(forward = false) },
                     ) { entry ->
                         val address = Uri.decode(entry.arguments?.getString("address").orEmpty())
                         ComposeScreen(
@@ -173,7 +206,13 @@ class MainActivity : ComponentActivity() {
                             },
                         )
                     }
-                    composable("settings") {
+                    composable(
+                        route = "settings",
+                        enterTransition = { SoftMotion.fadeThroughEnter() },
+                        exitTransition = { SoftMotion.fadeThroughExit() },
+                        popEnterTransition = { SoftMotion.fadeThroughEnter() },
+                        popExitTransition = { SoftMotion.fadeThroughExit() },
+                    ) {
                         SettingsScreen(
                             onBack = { navController.popBackStack() },
                             onRequestDefaultSms = ::requestDefaultSms,

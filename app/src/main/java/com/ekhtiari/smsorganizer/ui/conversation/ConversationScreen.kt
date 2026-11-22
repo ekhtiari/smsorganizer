@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -25,27 +26,37 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Done
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.SimCard
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -53,16 +64,22 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ekhtiari.smsorganizer.R
 import com.ekhtiari.smsorganizer.domain.MessageCategory
+import com.ekhtiari.smsorganizer.domain.SimInfo
 import com.ekhtiari.smsorganizer.domain.SmsMessage
+import com.ekhtiari.smsorganizer.ui.components.AvatarCircle
 import com.ekhtiari.smsorganizer.ui.components.formatMessageTime
+import com.ekhtiari.smsorganizer.ui.components.rememberUiHaptics
+import com.ekhtiari.smsorganizer.ui.components.warmFieldColors
 import com.ekhtiari.smsorganizer.ui.theme.SoftMotion
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,23 +92,10 @@ fun ConversationScreen(
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
-    val listState = rememberLazyListState()
     val context = LocalContext.current
-    val sendEnabled = ui.draft.isNotBlank() && !ui.sending
-    val sendScale by animateFloatAsState(
-        targetValue = if (sendEnabled) 1f else 0.92f,
-        animationSpec = SoftMotion.tweenSoft(SoftMotion.FastMs),
-        label = "sendScale",
-    )
 
     LaunchedEffect(threadId, address) {
         viewModel.load(threadId, address)
-    }
-
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.lastIndex)
-        }
     }
 
     if (ui.confirmDeleteMessageId != null) {
@@ -99,8 +103,21 @@ fun ConversationScreen(
             onDismissRequest = viewModel::cancelDeleteMessage,
             title = { Text(stringResource(R.string.delete_message)) },
             text = { Text(stringResource(R.string.delete_message_confirm)) },
+            shape = MaterialTheme.shapes.extraLarge,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             confirmButton = {
-                TextButton(onClick = viewModel::confirmDeleteMessage) {
+                TextButton(
+                    onClick = viewModel::confirmDeleteMessage,
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) {
+                    Icon(
+                        Icons.Outlined.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(stringResource(R.string.delete))
                 }
             },
@@ -112,35 +129,93 @@ fun ConversationScreen(
         )
     }
 
+    ConversationContent(
+        ui = ui,
+        messages = messages,
+        onBack = onBack,
+        onDraftChange = viewModel::updateDraft,
+        onSelectSim = viewModel::selectSim,
+        onSend = viewModel::send,
+        onDelete = viewModel::requestDeleteMessage,
+        onCopyOtp = { code ->
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("OTP", code))
+            Toast.makeText(context, R.string.otp_copied, Toast.LENGTH_SHORT).show()
+        },
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ConversationContent(
+    ui: ConversationUiState,
+    messages: List<SmsMessage>,
+    onBack: () -> Unit,
+    onDraftChange: (String) -> Unit,
+    onSelectSim: (Int) -> Unit,
+    onSend: () -> Unit,
+    onDelete: (Long) -> Unit,
+    onCopyOtp: (String) -> Unit,
+) {
+    val listState = rememberLazyListState()
+    val haptics = rememberUiHaptics()
+    val sendEnabled = ui.draft.isNotBlank() && !ui.sending
+    val sendScale by animateFloatAsState(
+        targetValue = if (sendEnabled) 1f else 0.92f,
+        animationSpec = SoftMotion.tweenSoft(SoftMotion.FastMs),
+        label = "sendScale",
+    )
+    val title = ui.displayName.ifBlank { ui.address }
+
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.lastIndex)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(ui.displayName.ifBlank { address })
-                        if (ui.address.isNotBlank() && ui.displayName != ui.address) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AvatarCircle(name = title.ifBlank { "?" }, size = 40.dp)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = ui.address,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = title,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
+                            if (ui.address.isNotBlank() && ui.displayName != ui.address) {
+                                Text(
+                                    text = ui.address,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         }
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
                 ),
             )
         },
-        // Handle IME with imePadding() so the composer stays above the keyboard
-        // under edge-to-edge (Scaffold safeDrawing alone is unreliable here).
         contentWindowInsets = WindowInsets.safeDrawing.exclude(WindowInsets.ime),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -153,24 +228,23 @@ fun ConversationScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
             ) {
-                items(messages, key = { it.id }) { message ->
+                itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
+                    val group = bubbleGrouping(messages, index)
                     MessageBubble(
                         message = message,
-                        onCopyOtp = { code ->
-                            val clipboard =
-                                context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("OTP", code))
-                            Toast.makeText(context, R.string.otp_copied, Toast.LENGTH_SHORT).show()
-                        },
-                        onDelete = { viewModel.requestDeleteMessage(message.id) },
-                        modifier = Modifier.animateItem(
-                            fadeInSpec = SoftMotion.tweenSoft(SoftMotion.FastMs),
-                            fadeOutSpec = SoftMotion.tweenSoft(SoftMotion.FastMs),
-                            placementSpec = SoftMotion.tweenSoft(),
-                        ),
+                        firstInGroup = group.first,
+                        lastInGroup = group.second,
+                        onCopyOtp = onCopyOtp,
+                        onDelete = { onDelete(message.id) },
+                        modifier = Modifier
+                            .padding(top = if (group.first && index > 0) 10.dp else 2.dp)
+                            .animateItem(
+                                fadeInSpec = SoftMotion.tweenSoft(SoftMotion.FastMs),
+                                fadeOutSpec = SoftMotion.tweenSoft(SoftMotion.FastMs),
+                                placementSpec = SoftMotion.tweenSoft(),
+                            ),
                     )
                 }
             }
@@ -180,20 +254,14 @@ fun ConversationScreen(
                 enter = SoftMotion.fadeSlideUp(),
                 exit = SoftMotion.fadeSlideDown(),
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    ui.sims.forEach { sim ->
-                        FilterChip(
-                            selected = ui.selectedSimId == sim.subscriptionId,
-                            onClick = { viewModel.selectSim(sim.subscriptionId) },
-                            label = { Text(sim.label) },
-                        )
-                    }
-                }
+                SimPicker(
+                    sims = ui.sims,
+                    selectedId = ui.selectedSimId,
+                    onSelect = { id ->
+                        haptics.tick()
+                        onSelectSim(id)
+                    },
+                )
             }
 
             AnimatedVisibility(
@@ -201,51 +269,65 @@ fun ConversationScreen(
                 enter = SoftMotion.fadeSlideUp(),
                 exit = SoftMotion.fadeSlideDown(),
             ) {
-                Text(
-                    text = ui.error.orEmpty(),
-                    color = MaterialTheme.colorScheme.error,
+                Row(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                )
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(
+                        Icons.Outlined.ErrorOutline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        text = ui.error.orEmpty(),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
             }
 
-            Surface(
-                tonalElevation = 2.dp,
-                color = MaterialTheme.colorScheme.surface,
-            ) {
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+            )
+            Surface(color = MaterialTheme.colorScheme.surface) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(8.dp)
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                         .animateContentSize(animationSpec = SoftMotion.tweenSoft(SoftMotion.FastMs)),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.Bottom,
                 ) {
                     TextField(
                         value = ui.draft,
-                        onValueChange = viewModel::updateDraft,
+                        onValueChange = onDraftChange,
                         modifier = Modifier.weight(1f),
                         placeholder = { Text(stringResource(R.string.type_message)) },
                         maxLines = 4,
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                        ),
-                        shape = RoundedCornerShape(20.dp),
+                        colors = warmFieldColors(),
+                        shape = RoundedCornerShape(24.dp),
                     )
-                    IconButton(
-                        onClick = viewModel::send,
+                    Spacer(modifier = Modifier.width(8.dp))
+                    FilledIconButton(
+                        onClick = {
+                            haptics.confirm()
+                            onSend()
+                        },
                         enabled = sendEnabled,
-                        modifier = Modifier.scale(sendScale),
+                        modifier = Modifier
+                            .padding(bottom = 4.dp)
+                            .scale(sendScale),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                        ),
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.Send,
                             contentDescription = stringResource(R.string.send),
-                            tint = if (sendEnabled) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-                            },
                         )
                     }
                 }
@@ -255,17 +337,96 @@ fun ConversationScreen(
 }
 
 @Composable
+private fun SimPicker(
+    sims: List<SimInfo>,
+    selectedId: Int?,
+    onSelect: (Int) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        sims.forEach { sim ->
+            val selected = selectedId == sim.subscriptionId
+            FilterChip(
+                selected = selected,
+                onClick = { onSelect(sim.subscriptionId) },
+                label = { Text(sim.label) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Outlined.SimCard,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                },
+                shape = RoundedCornerShape(50),
+            )
+        }
+    }
+}
+
+private fun bubbleGrouping(messages: List<SmsMessage>, index: Int): Pair<Boolean, Boolean> {
+    val message = messages[index]
+    val previous = messages.getOrNull(index - 1)
+    val next = messages.getOrNull(index + 1)
+    val gapMs = 5 * 60_000L
+    val first = previous == null ||
+        previous.isOutgoing != message.isOutgoing ||
+        message.date - previous.date > gapMs
+    val last = next == null ||
+        next.isOutgoing != message.isOutgoing ||
+        next.date - message.date > gapMs
+    return first to last
+}
+
+private fun chatBubbleShape(outgoing: Boolean, first: Boolean, last: Boolean): RoundedCornerShape {
+    val large = 22.dp
+    val tight = 8.dp
+    val tail = 6.dp
+    return RoundedCornerShape(
+        topStart = if (!outgoing && !first) tight else large,
+        topEnd = if (outgoing && !first) tight else large,
+        bottomStart = when {
+            !outgoing && last -> tail
+            !outgoing -> tight
+            else -> large
+        },
+        bottomEnd = when {
+            outgoing && last -> tail
+            outgoing -> tight
+            else -> large
+        },
+    )
+}
+
+@Composable
 private fun MessageBubble(
     message: SmsMessage,
+    firstInGroup: Boolean,
+    lastInGroup: Boolean,
     onCopyOtp: (String) -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val outgoing = message.type == SmsMessage.TYPE_SENT ||
-        message.type == SmsMessage.TYPE_OUTBOX ||
-        message.type == SmsMessage.TYPE_QUEUED
-    val onBubble = if (outgoing) MaterialTheme.colorScheme.onPrimary
-    else MaterialTheme.colorScheme.onSurfaceVariant
+    val outgoing = message.isOutgoing
+    val dark = isSystemInDarkTheme()
+    val bubbleColor = when {
+        outgoing && dark -> MaterialTheme.colorScheme.primaryContainer
+        outgoing -> MaterialTheme.colorScheme.primary
+        dark -> MaterialTheme.colorScheme.surfaceContainerHighest
+        else -> MaterialTheme.colorScheme.secondaryContainer
+    }
+    val onBubble = when {
+        outgoing && dark -> MaterialTheme.colorScheme.onPrimaryContainer
+        outgoing -> MaterialTheme.colorScheme.onPrimary
+        dark -> MaterialTheme.colorScheme.onSurface
+        else -> MaterialTheme.colorScheme.onSecondaryContainer
+    }
+    val shape = chatBubbleShape(outgoing, firstInGroup, lastInGroup)
+    val meta = onBubble.copy(alpha = 0.78f)
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -273,68 +434,105 @@ private fun MessageBubble(
         verticalAlignment = Alignment.Bottom,
     ) {
         if (outgoing) {
-            IconButton(onClick = onDelete) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = stringResource(R.string.delete_message),
-                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.75f),
-                )
-            }
+            DeleteMessageButton(onDelete)
         }
         Column(
             modifier = Modifier
                 .widthIn(max = 300.dp)
-                .background(
-                    color = if (outgoing) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(
-                        topStart = 18.dp,
-                        topEnd = 18.dp,
-                        bottomStart = if (outgoing) 18.dp else 4.dp,
-                        bottomEnd = if (outgoing) 4.dp else 18.dp,
-                    ),
-                )
-                .padding(12.dp)
-                .animateContentSize(animationSpec = SoftMotion.tweenSoft(SoftMotion.FastMs)),
+                .animateContentSize(animationSpec = SoftMotion.tweenSoft(SoftMotion.FastMs))
+                .clip(shape)
+                .background(bubbleColor)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
             Text(
                 text = message.body,
                 color = onBubble,
+                style = MaterialTheme.typography.bodyLarge,
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
                 Text(
                     text = formatMessageTime(message.date),
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (outgoing) onBubble.copy(alpha = 0.8f) else onBubble,
+                    color = meta,
                 )
+                StatusIcon(message.type, tint = meta)
                 if (message.subscriptionId >= 0) {
+                    Icon(
+                        Icons.Outlined.SimCard,
+                        contentDescription = null,
+                        tint = meta,
+                        modifier = Modifier.size(12.dp),
+                    )
                     Text(
-                        text = " · SIM",
+                        text = "SIM",
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (outgoing) onBubble.copy(alpha = 0.8f) else onBubble,
+                        color = meta,
                     )
                 }
             }
             AnimatedVisibility(
                 visible = message.category == MessageCategory.OTP && message.otpCode != null,
                 enter = fadeIn(SoftMotion.tweenSoft(SoftMotion.FastMs)) +
-                    scaleIn(animationSpec = SoftMotion.tweenSoft(SoftMotion.FastMs), initialScale = 0.94f),
+                    scaleIn(
+                        animationSpec = SoftMotion.tweenSoft(SoftMotion.FastMs),
+                        initialScale = 0.94f,
+                    ),
                 exit = fadeOut(SoftMotion.tweenSoft(SoftMotion.FastMs)),
             ) {
-                TextButton(onClick = { message.otpCode?.let(onCopyOtp) }) {
+                TextButton(
+                    onClick = { message.otpCode?.let(onCopyOtp) },
+                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                    colors = ButtonDefaults.textButtonColors(contentColor = onBubble),
+                ) {
+                    Icon(
+                        Icons.Outlined.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(stringResource(R.string.copy_otp) + " ${message.otpCode}")
                 }
             }
         }
         if (!outgoing) {
-            IconButton(onClick = onDelete) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = stringResource(R.string.delete_message),
-                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.75f),
-                )
-            }
+            DeleteMessageButton(onDelete)
         }
+    }
+}
+
+@Composable
+private fun DeleteMessageButton(onDelete: () -> Unit) {
+    IconButton(
+        onClick = onDelete,
+        modifier = Modifier.size(36.dp),
+    ) {
+        Icon(
+            Icons.Outlined.Delete,
+            contentDescription = stringResource(R.string.delete_message),
+            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+@Composable
+private fun StatusIcon(type: Int, tint: androidx.compose.ui.graphics.Color) {
+    val icon: ImageVector? = when (type) {
+        SmsMessage.TYPE_SENT -> Icons.Outlined.Done
+        SmsMessage.TYPE_OUTBOX, SmsMessage.TYPE_QUEUED -> Icons.Outlined.Schedule
+        SmsMessage.TYPE_FAILED -> Icons.Outlined.ErrorOutline
+        else -> null
+    }
+    if (icon != null) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(14.dp),
+        )
     }
 }
