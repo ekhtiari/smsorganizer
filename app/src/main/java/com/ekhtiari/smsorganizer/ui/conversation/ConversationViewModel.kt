@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -27,6 +28,7 @@ data class ConversationUiState(
     val sending: Boolean = false,
     val error: String? = null,
     val confirmDeleteMessageId: Long? = null,
+    val loading: Boolean = false,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -42,6 +44,10 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         threadIdFlow.flatMapLatest { id ->
             if (id == 0L) flowOf(emptyList())
             else app.smsRepository.observeThread(id)
+        }.onEach {
+            if (_ui.value.loading) {
+                _ui.value = _ui.value.copy(loading = false)
+            }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun load(threadId: Long, address: String) {
@@ -49,14 +55,16 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         val defaultSim = sims.firstOrNull { it.isDefaultSms }?.subscriptionId
             ?: sims.firstOrNull()?.subscriptionId
         val name = ContactHelper.resolveDisplayName(getApplication(), address) ?: address
-        threadIdFlow.value = threadId
         _ui.value = _ui.value.copy(
             threadId = threadId,
             address = address,
             displayName = name,
             sims = sims,
             selectedSimId = defaultSim,
+            loading = true,
+            error = null,
         )
+        threadIdFlow.value = threadId
         app.smsRepository.markThreadRead(threadId)
     }
 

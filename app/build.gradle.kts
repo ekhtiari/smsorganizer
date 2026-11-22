@@ -5,6 +5,9 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+// Screenshot renders are opt-in so CI unit tests stay free of Robolectric.
+val renderScreenshots = System.getenv("RENDER_SCREENSHOTS") == "1"
+
 // Environment variables win over Gradle properties (-P / ~/.gradle/gradle.properties).
 // Passwords are not trimmed: a trailing newline in a secret is a real mismatch.
 fun Project.credential(name: String): String? {
@@ -91,8 +94,8 @@ android {
         applicationId = "com.ekhtiari.smsorganizer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.0.7"
+        versionCode = 8
+        versionName = "1.0.8"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -164,6 +167,21 @@ android {
         }
     }
 
+    testOptions {
+        unitTests.isIncludeAndroidResources = renderScreenshots
+        unitTests.all {
+            if (renderScreenshots) {
+                it.systemProperty("robolectric.graphicsMode", "NATIVE")
+                it.systemProperty("robolectric.pixelCopyMode", "hardware")
+                it.maxHeapSize = "4096m"
+            }
+        }
+    }
+
+    if (renderScreenshots) {
+        sourceSets.getByName("test").java.srcDir("src/screenshot/java")
+    }
+
     // APK file name: SMS-Organizer-<versionName>.apk (debug includes the -debug suffix)
     applicationVariants.configureEach {
         outputs.configureEach {
@@ -174,7 +192,8 @@ android {
 }
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2024.10.01")
+    // Compose 1.8.2. material3 is pinned below, outside this BOM.
+    val composeBom = platform("androidx.compose:compose-bom:2025.05.01")
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
@@ -187,7 +206,10 @@ dependencies {
 
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
+    // Expressive APIs (MaterialExpressiveTheme, MotionScheme, ButtonGroup, FloatingToolbar,
+    // LoadingIndicator, MaterialShapes). 1.5.0-alpha12 is the newest line that still
+    // builds with Kotlin 2.0.21 and Compose 1.8; 1.5.0 stable needs Kotlin 2.2.
+    implementation("androidx.compose.material3:material3:1.5.0-alpha12")
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
@@ -200,4 +222,12 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+
+    if (renderScreenshots) {
+        testImplementation("org.robolectric:robolectric:4.14.1")
+        testImplementation("androidx.compose.ui:ui-test-junit4")
+        // Registers ComponentActivity so createComposeRule can launch it.
+        // Only on the classpath when screenshots are rendered, so CI APKs stay unchanged.
+        debugImplementation("androidx.compose.ui:ui-test-manifest")
+    }
 }

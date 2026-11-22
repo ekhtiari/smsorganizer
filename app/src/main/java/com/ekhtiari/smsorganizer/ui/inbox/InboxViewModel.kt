@@ -12,8 +12,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -28,6 +29,7 @@ data class InboxUiState(
     val defaultSmsBannerDismissed: Boolean = false,
     val sims: List<SimInfo> = emptyList(),
     val confirmDeleteThreadId: Long? = null,
+    val loading: Boolean = false,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -35,7 +37,10 @@ class InboxViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as SmsOrganizerApp
 
     private val _ui = MutableStateFlow(InboxUiState())
-    val ui: StateFlow<InboxUiState> = _ui.asStateFlow()
+    private val _loading = MutableStateFlow(true)
+    val ui: StateFlow<InboxUiState> = combine(_ui, _loading) { state, loading ->
+        state.copy(loading = loading)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), InboxUiState(loading = true))
 
     private val categoryFilter = MutableStateFlow<MessageCategory?>(null)
     private val searchQuery = MutableStateFlow("")
@@ -46,7 +51,8 @@ class InboxViewModel(application: Application) : AndroidViewModel(application) {
             else categoryFilter.flatMapLatest { cat ->
                 app.smsRepository.observeConversations(cat)
             }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        }.onEach { _loading.value = false }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {
         refreshStatus()

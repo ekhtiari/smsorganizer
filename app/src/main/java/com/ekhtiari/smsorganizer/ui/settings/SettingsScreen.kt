@@ -2,7 +2,6 @@ package com.ekhtiari.smsorganizer.ui.settings
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,12 +24,15 @@ import androidx.compose.material.icons.outlined.Sms
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -55,6 +58,7 @@ import com.ekhtiari.smsorganizer.R
 import com.ekhtiari.smsorganizer.SmsOrganizerApp
 import com.ekhtiari.smsorganizer.ui.components.TonalIcon
 import com.ekhtiari.smsorganizer.ui.components.rememberUiHaptics
+import com.ekhtiari.smsorganizer.ui.theme.LocalReducedMotion
 import com.ekhtiari.smsorganizer.ui.theme.SoftMotion
 import com.ekhtiari.smsorganizer.update.UpdateCheckResult
 import com.ekhtiari.smsorganizer.util.SmsPermissions
@@ -100,7 +104,7 @@ fun SettingsScreen(
         roleAvailable = SmsPermissions.isSmsRoleAvailable(context)
         simSummary = app.simManager.getActiveSims()
             .joinToString("\n") { "${it.label} (subId=${it.subscriptionId})" }
-            .ifBlank { "No SIMs detected (need READ_PHONE_STATE)" }
+            .ifBlank { context.getString(R.string.settings_no_sims) }
     }
 
     LaunchedEffect(Unit) { refresh() }
@@ -110,7 +114,11 @@ fun SettingsScreen(
         hasPerms = hasPerms,
         roleAvailable = roleAvailable,
         simSummary = simSummary,
-        versionLabel = "Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+        versionLabel = context.getString(
+            R.string.settings_version,
+            BuildConfig.VERSION_NAME,
+            BuildConfig.VERSION_CODE,
+        ),
         updateStatus = updateStatus,
         checkingUpdate = checkingUpdate,
         onBack = onBack,
@@ -138,7 +146,7 @@ fun SettingsScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingsContent(
     isDefault: Boolean,
@@ -157,14 +165,26 @@ fun SettingsContent(
     onCheckUpdate: () -> Unit,
 ) {
     val haptics = rememberUiHaptics()
+    val reduce = LocalReducedMotion.current
     val transparentItem = ListItemDefaults.colors(containerColor = Color.Transparent)
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.settings)) },
+                title = {
+                    Text(
+                        stringResource(R.string.settings),
+                        style = MaterialTheme.typography.titleLargeEmphasized,
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(
+                        onClick = onBack,
+                        shapes = IconButtonShapes(
+                            shape = MaterialTheme.shapes.extraLarge,
+                            pressedShape = MaterialTheme.shapes.small,
+                        ),
+                    ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back),
@@ -184,31 +204,39 @@ fun SettingsContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .animateContentSize(animationSpec = SoftMotion.tweenSoft()),
+                .animateContentSize(animationSpec = SoftMotion.spatial(reduce)),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
                 SettingsCard {
                     ListItem(
-                        headlineContent = { Text("Default SMS app") },
+                        headlineContent = {
+                            Text(
+                                stringResource(R.string.settings_default_sms),
+                                style = MaterialTheme.typography.titleMediumEmphasized,
+                            )
+                        },
                         supportingContent = {
                             Text(
                                 when {
-                                    isDefault -> "Enabled"
-                                    !roleAvailable -> "Role blocked for sideloaded apps — allow restricted settings first"
-                                    else -> "Not set — required to send & receive"
+                                    isDefault -> stringResource(R.string.settings_default_enabled)
+                                    !roleAvailable -> stringResource(R.string.settings_default_blocked)
+                                    else -> stringResource(R.string.settings_default_missing)
                                 },
                             )
                         },
-                        leadingContent = { TonalIcon(Icons.Outlined.Sms) },
+                        leadingContent = { TonalIcon(Icons.Outlined.Sms, shapeKey = "sms") },
                         trailingContent = {
                             if (!isDefault) {
-                                Button(onClick = {
-                                    haptics.click()
-                                    onRequestDefaultSms()
-                                }) {
-                                    Text("Set")
+                                Button(
+                                    onClick = {
+                                        haptics.click()
+                                        onRequestDefaultSms()
+                                    },
+                                    shapes = ButtonDefaults.shapes(),
+                                ) {
+                                    Text(stringResource(R.string.settings_set))
                                 }
                             }
                         },
@@ -216,8 +244,8 @@ fun SettingsContent(
                     )
                     AnimatedVisibility(
                         visible = !isDefault,
-                        enter = SoftMotion.fadeSlideUp(),
-                        exit = SoftMotion.fadeSlideDown(),
+                        enter = SoftMotion.fadeSlideUp(reduce),
+                        exit = SoftMotion.fadeSlideDown(reduce),
                     ) {
                         Column(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
@@ -231,7 +259,7 @@ fun SettingsContent(
                             OutlinedButton(
                                 onClick = onOpenAppInfo,
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = MaterialTheme.shapes.medium,
+                                shape = MaterialTheme.shapes.extraLarge,
                             ) {
                                 Icon(
                                     Icons.Outlined.Info,
@@ -244,7 +272,7 @@ fun SettingsContent(
                             OutlinedButton(
                                 onClick = onOpenDefaultApps,
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = MaterialTheme.shapes.medium,
+                                shape = MaterialTheme.shapes.extraLarge,
                             ) {
                                 Icon(
                                     Icons.Outlined.Apps,
@@ -256,22 +284,34 @@ fun SettingsContent(
                             }
                         }
                     }
-                    HorizontalDivider(
-                        modifier = Modifier.padding(start = 72.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
-                    )
                     ListItem(
-                        headlineContent = { Text("Permissions") },
-                        supportingContent = {
-                            Text(if (hasPerms) "Granted" else "Missing required permissions")
+                        headlineContent = {
+                            Text(
+                                stringResource(R.string.settings_permissions),
+                                style = MaterialTheme.typography.titleMediumEmphasized,
+                            )
                         },
-                        leadingContent = { TonalIcon(Icons.Outlined.VerifiedUser) },
+                        supportingContent = {
+                            Text(
+                                stringResource(
+                                    if (hasPerms) {
+                                        R.string.settings_permissions_granted
+                                    } else {
+                                        R.string.settings_permissions_missing
+                                    },
+                                ),
+                            )
+                        },
+                        leadingContent = { TonalIcon(Icons.Outlined.VerifiedUser, shapeKey = "perms") },
                         trailingContent = {
                             if (!hasPerms) {
-                                Button(onClick = {
-                                    haptics.click()
-                                    onRequestPermissions()
-                                }) {
+                                Button(
+                                    onClick = {
+                                        haptics.click()
+                                        onRequestPermissions()
+                                    },
+                                    shapes = ButtonDefaults.shapes(),
+                                ) {
                                     Text(stringResource(R.string.grant))
                                 }
                             }
@@ -284,9 +324,14 @@ fun SettingsContent(
             item {
                 SettingsCard {
                     ListItem(
-                        headlineContent = { Text("SIM cards") },
+                        headlineContent = {
+                            Text(
+                                stringResource(R.string.settings_sims),
+                                style = MaterialTheme.typography.titleMediumEmphasized,
+                            )
+                        },
                         supportingContent = { Text(simSummary) },
-                        leadingContent = { TonalIcon(Icons.Outlined.SimCard) },
+                        leadingContent = { TonalIcon(Icons.Outlined.SimCard, shapeKey = "sim") },
                         colors = transparentItem,
                     )
                 }
@@ -295,9 +340,20 @@ fun SettingsContent(
             item {
                 SettingsCard {
                     ListItem(
-                        headlineContent = { Text(stringResource(R.string.update_check)) },
+                        headlineContent = {
+                            Text(
+                                stringResource(R.string.update_check),
+                                style = MaterialTheme.typography.titleMediumEmphasized,
+                            )
+                        },
                         supportingContent = { Text(updateStatus) },
-                        leadingContent = { TonalIcon(Icons.Outlined.SystemUpdate) },
+                        leadingContent = {
+                            if (checkingUpdate) {
+                                LoadingIndicator(modifier = Modifier.size(44.dp))
+                            } else {
+                                TonalIcon(Icons.Outlined.SystemUpdate, shapeKey = "update")
+                            }
+                        },
                         trailingContent = {
                             Button(
                                 onClick = {
@@ -305,6 +361,7 @@ fun SettingsContent(
                                     onCheckUpdate()
                                 },
                                 enabled = !checkingUpdate,
+                                shapes = ButtonDefaults.shapes(),
                             ) {
                                 Text(stringResource(R.string.update_check_action))
                             }
@@ -320,8 +377,11 @@ fun SettingsContent(
                         haptics.click()
                         onReclassify()
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = ButtonDefaults.LargeContainerHeight),
+                    shapes = ButtonDefaults.shapesFor(ButtonDefaults.LargeContainerHeight),
+                    contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.LargeContainerHeight),
                 ) {
                     Icon(
                         Icons.Outlined.AutoAwesome,
@@ -329,15 +389,17 @@ fun SettingsContent(
                         modifier = Modifier.size(18.dp),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Re-classify messages")
+                    Text(stringResource(R.string.settings_reclassify))
                 }
             }
 
             item {
                 SettingsCard {
                     ListItem(
-                        headlineContent = { Text(versionLabel) },
-                        leadingContent = { TonalIcon(Icons.Outlined.Info) },
+                        headlineContent = {
+                            Text(versionLabel, style = MaterialTheme.typography.titleMediumEmphasized)
+                        },
+                        leadingContent = { TonalIcon(Icons.Outlined.Info, shapeKey = "about") },
                         colors = transparentItem,
                     )
                 }
@@ -347,20 +409,17 @@ fun SettingsContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SettingsCard(
     content: @Composable () -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = if (isSystemInDarkTheme()) {
-            MaterialTheme.colorScheme.surfaceContainerHigh
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerLowest
-        },
+        shape = MaterialTheme.shapes.extraLargeIncreased,
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
     ) {
-        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+        Column(modifier = Modifier.padding(vertical = 6.dp)) {
             content()
         }
     }
