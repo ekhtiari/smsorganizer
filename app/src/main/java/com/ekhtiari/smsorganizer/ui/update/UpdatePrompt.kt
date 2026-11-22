@@ -113,7 +113,7 @@ internal fun UpdatePromptDialog(
     )
 }
 
-/** Keeps tokens like 1.0.8 from flipping when they sit inside a Persian sentence. */
+/** Keeps version tokens in LTR order inside the sentence. */
 private fun ltrIsolate(value: String): String = "\u2066$value\u2069"
 
 internal fun openUpdateUrl(context: Context, url: String): Boolean {

@@ -85,10 +85,11 @@ import com.ekhtiari.smsorganizer.ui.components.ExpressiveDialogIcon
 import com.ekhtiari.smsorganizer.ui.components.LoadingState
 import com.ekhtiari.smsorganizer.ui.components.formatMessageTime
 import com.ekhtiari.smsorganizer.ui.components.rememberUiHaptics
-import com.ekhtiari.smsorganizer.ui.components.warmFieldColors
+import com.ekhtiari.smsorganizer.ui.components.filledFieldColors
 import com.ekhtiari.smsorganizer.ui.theme.LocalReducedMotion
 import com.ekhtiari.smsorganizer.ui.theme.SoftMotion
 import com.ekhtiari.smsorganizer.ui.theme.sharedWith
+import com.ekhtiari.smsorganizer.ui.theme.withMessageFont
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -201,7 +202,9 @@ fun ConversationContent(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = title,
-                                style = MaterialTheme.typography.titleLargeEmphasized,
+                                style = MaterialTheme.typography.titleLargeEmphasized.withMessageFont().copy(
+                                    textDirection = TextDirection.Content,
+                                ),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.sharedWith(
@@ -342,10 +345,10 @@ fun ConversationContent(
                         modifier = Modifier.weight(1f),
                         placeholder = { Text(stringResource(R.string.type_message)) },
                         maxLines = 4,
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        textStyle = MaterialTheme.typography.bodyLarge.withMessageFont().copy(
                             textDirection = TextDirection.Content,
                         ),
-                        colors = warmFieldColors(),
+                        colors = filledFieldColors(),
                         shape = MaterialTheme.shapes.extraLarge,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -502,7 +505,7 @@ private fun MessageBubble(
             Text(
                 text = message.body,
                 color = onBubble,
-                style = MaterialTheme.typography.bodyLarge.copy(
+                style = MaterialTheme.typography.bodyLarge.withMessageFont().copy(
                     textDirection = TextDirection.Content,
                 ),
             )

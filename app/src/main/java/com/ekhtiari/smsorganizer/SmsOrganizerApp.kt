@@ -1,6 +1,7 @@
 package com.ekhtiari.smsorganizer
 
 import android.app.Application
+import android.content.Context
 import com.ekhtiari.smsorganizer.data.repository.SmsRepository
 import com.ekhtiari.smsorganizer.sms.NotificationHelper
 import com.ekhtiari.smsorganizer.sms.SimManager
@@ -28,8 +29,13 @@ class SmsOrganizerApp : Application() {
     lateinit var updateChecker: UpdateChecker
         private set
 
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(AppLocale.wrap(base))
+    }
+
     override fun onCreate() {
         super.onCreate()
+        AppLocale.lock(this)
         smsRepository = SmsRepository(this)
         simManager = SimManager(this)
         smsSender = SmsSender(this, simManager)

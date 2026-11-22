@@ -41,8 +41,10 @@ import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -50,20 +52,21 @@ import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.RoundedPolygon
 import com.ekhtiari.smsorganizer.R
 import com.ekhtiari.smsorganizer.domain.MessageCategory
+import com.ekhtiari.smsorganizer.ui.theme.MessageFontFamily
 import java.text.DateFormat
 import java.util.Date
 
 private val AvatarPalette = listOf(
-    Color(0xFFB32600),
-    Color(0xFFD97706),
-    Color(0xFF0F766E),
-    Color(0xFF6B4EA2),
-    Color(0xFFBE185D),
+    Color(0xFF0B57D0),
     Color(0xFF1D4ED8),
-    Color(0xFFB45309),
-    Color(0xFF047857),
-    Color(0xFF9333EA),
+    Color(0xFF1E40AF),
+    Color(0xFF1E3A8A),
+    Color(0xFF3730A3),
+    Color(0xFF312E81),
     Color(0xFF0369A1),
+    Color(0xFF075985),
+    Color(0xFF0E7490),
+    Color(0xFF155E75),
 )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -175,8 +178,13 @@ fun AvatarCircle(
             Text(
                 text = initials,
                 color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = (size.value * 0.34f).sp,
+                style = TextStyle(
+                    fontFamily = MessageFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = (size.value * 0.34f).sp,
+                    letterSpacing = 0.sp,
+                    textDirection = TextDirection.Content,
+                ),
                 maxLines = 1,
                 overflow = TextOverflow.Clip,
             )
@@ -325,7 +333,7 @@ fun ExpressiveDialogIcon(
 }
 
 @Composable
-fun warmFieldColors() = TextFieldDefaults.colors(
+fun filledFieldColors() = TextFieldDefaults.colors(
     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,

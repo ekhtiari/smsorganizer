@@ -3,9 +3,11 @@ package com.ekhtiari.smsorganizer
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -49,9 +51,14 @@ class MainActivity : ComponentActivity() {
         const val ACTION_COPY_OTP = "com.ekhtiari.smsorganizer.COPY_OTP"
     }
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        window.decorView.layoutDirection = View.LAYOUT_DIRECTION_LTR
         handleOtpIntent(intent)
 
         setContent {

@@ -29,25 +29,25 @@ import org.robolectric.shadows.ShadowDialog
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [28], qualifiers = "fa-rIR-w360dp-h960dp-xhdpi")
+@Config(sdk = [28], qualifiers = "en-rUS-w360dp-h960dp-xhdpi")
 class ExpressiveScreenshotTest {
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun persianLightAndDark() {
+    fun englishLightAndDark() {
         var screen by mutableStateOf<@Composable () -> Unit>({ })
         compose.setContent { screen() }
-        capture("inbox-fa-light", { screen = { InboxFaLightPreview() } })
-        capture("inbox-fa-dark", { screen = { InboxFaDarkPreview() } })
-        capture("conversation-fa-light", { screen = { ConversationFaLightPreview() } })
-        capture("conversation-fa-dark", { screen = { ConversationFaDarkPreview() } })
-        capture("compose-fa-light", { screen = { ComposeFaLightPreview() } })
-        capture("compose-fa-dark", { screen = { ComposeFaDarkPreview() } })
-        capture("settings-fa-light", { screen = { SettingsFaLightPreview() } })
-        capture("settings-fa-dark", { screen = { SettingsFaDarkPreview() } })
-        capture("update-fa-light", { screen = { UpdateFaLightPreview() } })
-        capture("update-fa-dark", { screen = { UpdateFaDarkPreview() } })
+        capture("inbox-light", { screen = { InboxLightPreview() } })
+        capture("inbox-dark", { screen = { InboxDarkPreview() } })
+        capture("conversation-light", { screen = { ConversationLightPreview() } })
+        capture("conversation-dark", { screen = { ConversationDarkPreview() } })
+        capture("compose-light", { screen = { ComposeLightPreview() } })
+        capture("compose-dark", { screen = { ComposeDarkPreview() } })
+        capture("settings-light", { screen = { SettingsLightPreview() } })
+        capture("settings-dark", { screen = { SettingsDarkPreview() } })
+        capture("update-light", { screen = { UpdateLightPreview() } })
+        capture("update-dark", { screen = { UpdateDarkPreview() } })
     }
 
     private fun capture(name: String, show: () -> Unit) {

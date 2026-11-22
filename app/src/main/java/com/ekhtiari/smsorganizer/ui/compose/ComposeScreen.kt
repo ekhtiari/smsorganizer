@@ -59,9 +59,10 @@ import com.ekhtiari.smsorganizer.SmsOrganizerApp
 import com.ekhtiari.smsorganizer.domain.SimInfo
 import com.ekhtiari.smsorganizer.ui.components.AvatarCircle
 import com.ekhtiari.smsorganizer.ui.components.rememberUiHaptics
-import com.ekhtiari.smsorganizer.ui.components.warmFieldColors
+import com.ekhtiari.smsorganizer.ui.components.filledFieldColors
 import com.ekhtiari.smsorganizer.ui.theme.LocalReducedMotion
 import com.ekhtiari.smsorganizer.ui.theme.SoftMotion
+import com.ekhtiari.smsorganizer.ui.theme.withMessageFont
 import kotlinx.coroutines.launch
 
 class ComposeViewModel(application: Application) : AndroidViewModel(application) {
@@ -208,7 +209,7 @@ fun ComposeContent(
                         textStyle = MaterialTheme.typography.bodyLarge.copy(
                             textDirection = TextDirection.Ltr,
                         ),
-                        colors = warmFieldColors(),
+                        colors = filledFieldColors(),
                         shape = MaterialTheme.shapes.extraLarge,
                     )
                 }
@@ -258,10 +259,10 @@ fun ComposeContent(
                         .fillMaxWidth()
                         .weight(1f),
                     placeholder = { Text(stringResource(R.string.type_message)) },
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    textStyle = MaterialTheme.typography.bodyLarge.withMessageFont().copy(
                         textDirection = TextDirection.Content,
                     ),
-                    colors = warmFieldColors(),
+                    colors = filledFieldColors(),
                     shape = MaterialTheme.shapes.extraLargeIncreased,
                 )
 

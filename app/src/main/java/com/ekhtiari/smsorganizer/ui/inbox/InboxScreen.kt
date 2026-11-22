@@ -95,10 +95,11 @@ import com.ekhtiari.smsorganizer.ui.components.LoadingState
 import com.ekhtiari.smsorganizer.ui.components.expressivePress
 import com.ekhtiari.smsorganizer.ui.components.formatRelativeTime
 import com.ekhtiari.smsorganizer.ui.components.rememberUiHaptics
-import com.ekhtiari.smsorganizer.ui.components.warmFieldColors
+import com.ekhtiari.smsorganizer.ui.components.filledFieldColors
 import com.ekhtiari.smsorganizer.ui.theme.LocalReducedMotion
 import com.ekhtiari.smsorganizer.ui.theme.SoftMotion
 import com.ekhtiari.smsorganizer.ui.theme.sharedWith
+import com.ekhtiari.smsorganizer.ui.theme.withMessageFont
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.remember
 
@@ -387,7 +388,10 @@ fun InboxContent(
                     null
                 },
                 singleLine = true,
-                colors = warmFieldColors(),
+                textStyle = MaterialTheme.typography.bodyLarge.withMessageFont().copy(
+                    textDirection = TextDirection.Content,
+                ),
+                colors = filledFieldColors(),
                 shape = MaterialTheme.shapes.extraLarge,
             )
 
@@ -658,7 +662,7 @@ private fun ConversationRow(
                     ) {
                         Text(
                             text = isolateBidi(conversation.displayName),
-                            style = MaterialTheme.typography.titleMediumEmphasized.copy(
+                            style = MaterialTheme.typography.titleMediumEmphasized.withMessageFont().copy(
                                 textDirection = TextDirection.Content,
                             ),
                             maxLines = 1,
@@ -704,7 +708,7 @@ private fun ConversationRow(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = conversation.snippet,
-                    style = MaterialTheme.typography.bodyMedium.copy(
+                    style = MaterialTheme.typography.bodyMedium.withMessageFont().copy(
                         textDirection = TextDirection.Content,
                     ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -1,11 +1,8 @@
 package com.ekhtiari.smsorganizer.ui.preview
 
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.runtime.CompositionLocalProvider
 import com.ekhtiari.smsorganizer.R
 import com.ekhtiari.smsorganizer.domain.Conversation
 import com.ekhtiari.smsorganizer.domain.MessageCategory
@@ -145,14 +142,9 @@ private val conversationState = ConversationUiState(
 @Composable
 private fun Frame(
     dark: Boolean,
-    rtl: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    CompositionLocalProvider(
-        LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr,
-    ) {
-        SmsOrganizerTheme(darkTheme = dark, dynamicColor = false, content = content)
-    }
+    SmsOrganizerTheme(darkTheme = dark, content = content)
 }
 
 @Preview(name = "Inbox light", widthDp = 360, heightDp = 800, showBackground = true)
@@ -182,14 +174,6 @@ fun InboxLightPreview() = Frame(dark = false) {
 @Composable
 fun InboxDarkPreview() = Frame(dark = true) { InboxLightPreviewBody() }
 
-@Preview(name = "Inbox fa light", locale = "fa", widthDp = 360, heightDp = 800, showBackground = true)
-@Composable
-fun InboxFaLightPreview() = Frame(dark = false, rtl = true) { InboxLightPreviewBody() }
-
-@Preview(name = "Inbox fa dark", locale = "fa", widthDp = 360, heightDp = 800, showBackground = true)
-@Composable
-fun InboxFaDarkPreview() = Frame(dark = true, rtl = true) { InboxLightPreviewBody() }
-
 @Composable
 internal fun InboxLightPreviewBody() {
     InboxContent(
@@ -212,10 +196,6 @@ internal fun InboxLightPreviewBody() {
     )
 }
 
-@Preview(name = "Inbox RTL", widthDp = 360, heightDp = 800, showBackground = true)
-@Composable
-fun InboxRtlPreview() = Frame(dark = false, rtl = true) { InboxLightPreviewBody() }
-
 @Preview(name = "Conversation light", widthDp = 360, heightDp = 800, showBackground = true)
 @Composable
 fun ConversationLightPreview() = Frame(dark = false) { ConversationPreviewBody() }
@@ -223,18 +203,6 @@ fun ConversationLightPreview() = Frame(dark = false) { ConversationPreviewBody()
 @Preview(name = "Conversation dark", widthDp = 360, heightDp = 800, showBackground = true)
 @Composable
 fun ConversationDarkPreview() = Frame(dark = true) { ConversationPreviewBody() }
-
-@Preview(name = "Conversation RTL", widthDp = 360, heightDp = 800, showBackground = true)
-@Composable
-fun ConversationRtlPreview() = Frame(dark = false, rtl = true) { ConversationPreviewBody() }
-
-@Preview(name = "Conversation fa light", locale = "fa", widthDp = 360, heightDp = 800, showBackground = true)
-@Composable
-fun ConversationFaLightPreview() = Frame(dark = false, rtl = true) { ConversationPreviewBody() }
-
-@Preview(name = "Conversation fa dark", locale = "fa", widthDp = 360, heightDp = 800, showBackground = true)
-@Composable
-fun ConversationFaDarkPreview() = Frame(dark = true, rtl = true) { ConversationPreviewBody() }
 
 @Composable
 internal fun ConversationPreviewBody() {
@@ -257,14 +225,6 @@ fun ComposeLightPreview() = Frame(dark = false) { ComposePreviewBody() }
 @Preview(name = "Compose dark", widthDp = 360, heightDp = 800, showBackground = true)
 @Composable
 fun ComposeDarkPreview() = Frame(dark = true) { ComposePreviewBody() }
-
-@Preview(name = "Compose fa light", locale = "fa", widthDp = 360, heightDp = 800, showBackground = true)
-@Composable
-fun ComposeFaLightPreview() = Frame(dark = false, rtl = true) { ComposePreviewBody() }
-
-@Preview(name = "Compose fa dark", locale = "fa", widthDp = 360, heightDp = 800, showBackground = true)
-@Composable
-fun ComposeFaDarkPreview() = Frame(dark = true, rtl = true) { ComposePreviewBody() }
 
 @Composable
 internal fun ComposePreviewBody() {
@@ -290,14 +250,6 @@ fun SettingsLightPreview() = Frame(dark = false) { SettingsPreviewBody() }
 @Composable
 fun SettingsDarkPreview() = Frame(dark = true) { SettingsPreviewBody() }
 
-@Preview(name = "Settings fa light", locale = "fa", widthDp = 360, heightDp = 800, showBackground = true)
-@Composable
-fun SettingsFaLightPreview() = Frame(dark = false, rtl = true) { SettingsPreviewBody() }
-
-@Preview(name = "Settings fa dark", locale = "fa", widthDp = 360, heightDp = 800, showBackground = true)
-@Composable
-fun SettingsFaDarkPreview() = Frame(dark = true, rtl = true) { SettingsPreviewBody() }
-
 @Composable
 internal fun SettingsPreviewBody() {
     SettingsContent(
@@ -305,7 +257,7 @@ internal fun SettingsPreviewBody() {
         hasPerms = true,
         roleAvailable = true,
         simSummary = "SIM 1 · Irancell (subId=1)\nSIM 2 · MCI (subId=2)",
-        versionLabel = stringResource(R.string.settings_version, "1.0.8", 8),
+        versionLabel = stringResource(R.string.settings_version, "1.0.9", 9),
         updateStatus = stringResource(R.string.update_check_hint),
         checkingUpdate = false,
         onBack = {},
@@ -326,19 +278,11 @@ fun UpdateLightPreview() = Frame(dark = false) { UpdatePreviewBody() }
 @Composable
 fun UpdateDarkPreview() = Frame(dark = true) { UpdatePreviewBody() }
 
-@Preview(name = "Update fa light", locale = "fa", widthDp = 360, heightDp = 640, showBackground = true)
-@Composable
-fun UpdateFaLightPreview() = Frame(dark = false, rtl = true) { UpdatePreviewBody() }
-
-@Preview(name = "Update fa dark", locale = "fa", widthDp = 360, heightDp = 640, showBackground = true)
-@Composable
-fun UpdateFaDarkPreview() = Frame(dark = true, rtl = true) { UpdatePreviewBody() }
-
 @Composable
 internal fun UpdatePreviewBody() {
     UpdatePromptDialog(
-        versionName = "1.0.9",
-        currentVersion = "1.0.8",
+        versionName = "1.1.0",
+        currentVersion = "1.0.9",
         directApk = true,
         onConfirm = {},
         onLater = {},
