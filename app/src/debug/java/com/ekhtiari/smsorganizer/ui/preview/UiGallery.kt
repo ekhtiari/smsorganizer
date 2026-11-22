@@ -16,6 +16,7 @@ import com.ekhtiari.smsorganizer.ui.inbox.InboxContent
 import com.ekhtiari.smsorganizer.ui.inbox.InboxUiState
 import com.ekhtiari.smsorganizer.ui.settings.SettingsContent
 import com.ekhtiari.smsorganizer.ui.theme.SmsOrganizerTheme
+import com.ekhtiari.smsorganizer.ui.update.UpdatePromptDialog
 
 private val Now = System.currentTimeMillis()
 
@@ -270,12 +271,35 @@ private fun SettingsPreviewBody() {
         hasPerms = true,
         roleAvailable = true,
         simSummary = "SIM 1 · Irancell (subId=1)\nSIM 2 · MCI (subId=2)",
-        versionLabel = "Version 1.0.6 (6)",
+        versionLabel = "Version 1.0.7 (7)",
+        updateStatus = "Look for a newer version of the app",
+        checkingUpdate = false,
         onBack = {},
         onRequestDefaultSms = {},
         onRequestPermissions = {},
         onOpenAppInfo = {},
         onOpenDefaultApps = {},
         onReclassify = {},
+        onCheckUpdate = {},
+    )
+}
+
+@Preview(name = "Update light", widthDp = 360, heightDp = 640, showBackground = true)
+@Composable
+fun UpdateLightPreview() = Frame(dark = false) { UpdatePreviewBody() }
+
+@Preview(name = "Update dark", widthDp = 360, heightDp = 640, showBackground = true)
+@Composable
+fun UpdateDarkPreview() = Frame(dark = true) { UpdatePreviewBody() }
+
+@Composable
+private fun UpdatePreviewBody() {
+    UpdatePromptDialog(
+        versionName = "1.0.8",
+        currentVersion = "1.0.7",
+        directApk = true,
+        onConfirm = {},
+        onLater = {},
+        onDismiss = {},
     )
 }

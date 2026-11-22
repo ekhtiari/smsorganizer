@@ -75,6 +75,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -574,7 +575,9 @@ private fun ConversationRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = conversation.displayName,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        textDirection = TextDirection.Content,
+                    ),
                     fontWeight = if (unread) FontWeight.Bold else FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -610,7 +613,9 @@ private fun ConversationRow(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = conversation.snippet,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    textDirection = TextDirection.Content,
+                ),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (unread) FontWeight.Medium else FontWeight.Normal,
                 maxLines = 1,

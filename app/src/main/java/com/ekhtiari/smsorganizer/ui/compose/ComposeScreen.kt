@@ -47,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -194,6 +195,9 @@ fun ComposeContent(
                             Icon(Icons.Outlined.Person, contentDescription = null)
                         },
                         singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            textDirection = TextDirection.Content,
+                        ),
                         colors = warmFieldColors(),
                         shape = RoundedCornerShape(20.dp),
                     )
@@ -253,6 +257,9 @@ fun ComposeContent(
                         .fillMaxWidth()
                         .weight(1f),
                     placeholder = { Text(stringResource(R.string.type_message)) },
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        textDirection = TextDirection.Content,
+                    ),
                     colors = warmFieldColors(),
                     shape = MaterialTheme.shapes.large,
                 )

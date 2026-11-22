@@ -36,12 +36,35 @@ fun UpdatePrompt() {
     val app = context.applicationContext as? SmsOrganizerApp ?: return
     val offer by app.updateChecker.offer.collectAsStateWithLifecycle()
     val pending = offer ?: return
+    UpdatePromptDialog(
+        versionName = pending.versionName,
+        currentVersion = BuildConfig.VERSION_NAME,
+        directApk = pending.directApk,
+        onConfirm = {
+            if (openUpdateUrl(context, pending.downloadUrl)) {
+                app.updateChecker.hideForSession()
+            }
+        },
+        onLater = { app.updateChecker.dismissCurrent() },
+        onDismiss = { app.updateChecker.hideForSession() },
+    )
+}
+
+@Composable
+internal fun UpdatePromptDialog(
+    versionName: String,
+    currentVersion: String,
+    directApk: Boolean,
+    onConfirm: () -> Unit,
+    onLater: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     val haptics = rememberUiHaptics()
     val actionLabel = stringResource(
-        if (pending.directApk) R.string.update_download else R.string.update_view_release,
+        if (directApk) R.string.update_download else R.string.update_view_release,
     )
     AlertDialog(
-        onDismissRequest = { app.updateChecker.hideForSession() },
+        onDismissRequest = onDismiss,
         icon = {
             Icon(
                 Icons.Outlined.SystemUpdate,
@@ -54,8 +77,8 @@ fun UpdatePrompt() {
             Text(
                 stringResource(
                     R.string.update_available_body,
-                    pending.versionName,
-                    BuildConfig.VERSION_NAME,
+                    versionName,
+                    currentVersion,
                 ),
             )
         },
@@ -65,13 +88,11 @@ fun UpdatePrompt() {
             Button(
                 onClick = {
                     haptics.click()
-                    if (openUpdateUrl(context, pending.downloadUrl)) {
-                        app.updateChecker.hideForSession()
-                    }
+                    onConfirm()
                 },
             ) {
                 Icon(
-                    if (pending.directApk) Icons.Outlined.Download else Icons.Outlined.OpenInNew,
+                    if (directApk) Icons.Outlined.Download else Icons.Outlined.OpenInNew,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
                 )
@@ -80,7 +101,7 @@ fun UpdatePrompt() {
             }
         },
         dismissButton = {
-            TextButton(onClick = { app.updateChecker.dismissCurrent() }) {
+            TextButton(onClick = onLater) {
                 Text(stringResource(R.string.update_later))
             }
         },

@@ -69,6 +69,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -305,6 +306,9 @@ fun ConversationContent(
                         modifier = Modifier.weight(1f),
                         placeholder = { Text(stringResource(R.string.type_message)) },
                         maxLines = 4,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            textDirection = TextDirection.Content,
+                        ),
                         colors = warmFieldColors(),
                         shape = RoundedCornerShape(24.dp),
                     )
@@ -447,7 +451,9 @@ private fun MessageBubble(
             Text(
                 text = message.body,
                 color = onBubble,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    textDirection = TextDirection.Content,
+                ),
             )
             Spacer(modifier = Modifier.height(4.dp))
             Row(
@@ -456,7 +462,9 @@ private fun MessageBubble(
             ) {
                 Text(
                     text = formatMessageTime(message.date),
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        textDirection = TextDirection.Content,
+                    ),
                     color = meta,
                 )
                 StatusIcon(message.type, tint = meta)
