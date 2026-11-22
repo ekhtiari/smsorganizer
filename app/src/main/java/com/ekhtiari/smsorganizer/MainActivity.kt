@@ -31,6 +31,7 @@ import com.ekhtiari.smsorganizer.ui.inbox.InboxScreen
 import com.ekhtiari.smsorganizer.ui.inbox.InboxViewModel
 import com.ekhtiari.smsorganizer.ui.settings.SettingsScreen
 import com.ekhtiari.smsorganizer.ui.theme.SmsOrganizerTheme
+import com.ekhtiari.smsorganizer.ui.update.UpdatePrompt
 import com.ekhtiari.smsorganizer.ui.theme.SoftMotion
 import com.ekhtiari.smsorganizer.util.SmsPermissions
 
@@ -50,6 +51,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SmsOrganizerTheme {
+                UpdatePrompt()
                 val navController = rememberNavController()
                 val inboxViewModel: InboxViewModel = viewModel()
                 val conversationViewModel: ConversationViewModel = viewModel()

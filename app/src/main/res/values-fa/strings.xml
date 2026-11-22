@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_available_title">نسخه جدید موجود است</string>
+    <string name="update_available_body">نسخه %1$s آماده دانلود است. نسخه نصب‌شده: %2$s.</string>
+    <string name="update_download">دانلود</string>
+    <string name="update_view_release">مشاهده انتشار</string>
+    <string name="update_later">بعداً</string>
+    <string name="update_check">بررسی به‌روزرسانی</string>
+    <string name="update_check_action">بررسی</string>
+    <string name="update_checking">در حال بررسی...</string>
+    <string name="update_check_hint">وجود نسخه جدید برنامه را بررسی کنید</string>
+    <string name="update_up_to_date">شما از آخرین نسخه استفاده می‌کنید.</string>
+    <string name="update_check_failed">بررسی به‌روزرسانی انجام نشد.</string>
+    <string name="update_available_status">نسخه %1$s موجود است.</string>
+    <string name="notification_channel_updates">به‌روزرسانی‌ها</string>
+    <string name="notification_channel_updates_description">نسخه‌های جدید SMS Organizer</string>
+    <string name="notification_update_title">نسخه جدید موجود است</string>
+    <string name="notification_update_body">نسخه %1$s آماده دانلود است.</string>
+</resources>
