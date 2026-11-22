@@ -36,7 +36,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Done
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -81,6 +80,7 @@ import com.ekhtiari.smsorganizer.domain.MessageCategory
 import com.ekhtiari.smsorganizer.domain.SimInfo
 import com.ekhtiari.smsorganizer.domain.SmsMessage
 import com.ekhtiari.smsorganizer.ui.components.AvatarCircle
+import com.ekhtiari.smsorganizer.ui.components.CopyCodeChip
 import com.ekhtiari.smsorganizer.ui.components.ExpressiveDialogIcon
 import com.ekhtiari.smsorganizer.ui.components.LoadingState
 import com.ekhtiari.smsorganizer.ui.components.formatMessageTime
@@ -545,19 +545,17 @@ private fun MessageBubble(
                     ),
                 exit = fadeOut(SoftMotion.effects(reduce, fast = true)),
             ) {
-                TextButton(
+                CopyCodeChip(
+                    code = message.otpCode.orEmpty(),
                     onClick = { message.otpCode?.let(onCopyOtp) },
-                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
-                    colors = ButtonDefaults.textButtonColors(contentColor = onBubble),
-                ) {
-                    Icon(
-                        Icons.Outlined.ContentCopy,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(R.string.copy_otp) + " ${message.otpCode}")
-                }
+                    containerColor = if (outgoing) {
+                        onBubble.copy(alpha = 0.18f)
+                    } else {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                    },
+                    contentColor = if (outgoing) onBubble else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
             }
         }
         if (!outgoing) {
