@@ -647,39 +647,58 @@ private fun ConversationRow(
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = conversation.displayName,
-                        style = MaterialTheme.typography.titleMediumEmphasized.copy(
-                            textDirection = TextDirection.Content,
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .weight(1f)
-                            .sharedWith(
-                                "title-${conversation.threadId}",
-                                sharedScope,
-                                bounds = true,
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f, fill = false),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = isolateBidi(conversation.displayName),
+                            style = MaterialTheme.typography.titleMediumEmphasized.copy(
+                                textDirection = TextDirection.Content,
                             ),
-                    )
-                    if (unread) {
-                        Badge(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                        ) {
-                            Text(conversation.unreadCount.coerceAtMost(99).toString())
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .sharedWith(
+                                    "title-${conversation.threadId}",
+                                    sharedScope,
+                                    bounds = true,
+                                ),
+                        )
+                        if (unread) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Badge(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                            ) {
+                                Text(
+                                    conversation.unreadCount.coerceAtMost(99).toString(),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        textDirection = TextDirection.Ltr,
+                                    ),
+                                )
+                            }
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
                     }
                     Text(
                         text = formatRelativeTime(conversation.date),
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            textDirection = TextDirection.Ltr,
+                        ),
                         color = if (unread) {
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
+                        maxLines = 1,
+                        modifier = Modifier.padding(start = 8.dp),
                     )
                 }
                 Spacer(modifier = Modifier.height(2.dp))
@@ -766,3 +785,6 @@ private fun ConversationRow(
         }
     }
 }
+
+/** Keep a sender name in its own direction so it cannot merge with the unread badge. */
+private fun isolateBidi(text: String): String = "\u2068$text\u2069"
