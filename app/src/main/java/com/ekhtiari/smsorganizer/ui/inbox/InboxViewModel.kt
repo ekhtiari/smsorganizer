@@ -24,7 +24,10 @@ data class InboxUiState(
     val hasPermissions: Boolean = false,
     val smsRoleAvailable: Boolean = true,
     val defaultSmsRequestDenied: Boolean = false,
+    val permissionBannerDismissed: Boolean = false,
+    val defaultSmsBannerDismissed: Boolean = false,
     val sims: List<SimInfo> = emptyList(),
+    val confirmDeleteThreadId: Long? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -52,11 +55,14 @@ class InboxViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshStatus() {
         val ctx = getApplication<Application>()
         val isDefault = SmsPermissions.isDefaultSmsApp(ctx)
+        val hasPermissions = SmsPermissions.hasAll(ctx)
         _ui.value = _ui.value.copy(
             isDefaultSms = isDefault,
-            hasPermissions = SmsPermissions.hasAll(ctx),
+            hasPermissions = hasPermissions,
             smsRoleAvailable = SmsPermissions.isSmsRoleAvailable(ctx),
             defaultSmsRequestDenied = if (isDefault) false else _ui.value.defaultSmsRequestDenied,
+            permissionBannerDismissed = if (hasPermissions) false else _ui.value.permissionBannerDismissed,
+            defaultSmsBannerDismissed = if (isDefault) false else _ui.value.defaultSmsBannerDismissed,
             sims = app.simManager.getActiveSims(),
             category = categoryFilter.value,
             searchQuery = searchQuery.value,
@@ -69,6 +75,14 @@ class InboxViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun dismissPermissionBanner() {
+        _ui.value = _ui.value.copy(permissionBannerDismissed = true)
+    }
+
+    fun dismissDefaultSmsBanner() {
+        _ui.value = _ui.value.copy(defaultSmsBannerDismissed = true)
+    }
+
     fun setCategory(category: MessageCategory?) {
         categoryFilter.value = category
         _ui.value = _ui.value.copy(category = category)
@@ -77,6 +91,28 @@ class InboxViewModel(application: Application) : AndroidViewModel(application) {
     fun setSearch(query: String) {
         searchQuery.value = query
         _ui.value = _ui.value.copy(searchQuery = query)
+    }
+
+    fun requestDeleteConversation(threadId: Long) {
+        _ui.value = _ui.value.copy(confirmDeleteThreadId = threadId)
+    }
+
+    fun cancelDeleteConversation() {
+        _ui.value = _ui.value.copy(confirmDeleteThreadId = null)
+    }
+
+    fun confirmDeleteConversation() {
+        val threadId = _ui.value.confirmDeleteThreadId ?: return
+        _ui.value = _ui.value.copy(confirmDeleteThreadId = null)
+        viewModelScope.launch {
+            app.smsRepository.deleteThreadNow(threadId)
+        }
+    }
+
+    fun archiveConversation(threadId: Long) {
+        viewModelScope.launch {
+            app.smsRepository.archiveThread(threadId)
+        }
     }
 
     fun reclassify() {

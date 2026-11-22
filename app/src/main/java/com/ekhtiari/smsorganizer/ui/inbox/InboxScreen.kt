@@ -23,9 +23,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -82,6 +86,24 @@ fun InboxScreen(
 
     LaunchedEffect(Unit) { viewModel.refreshStatus() }
 
+    if (ui.confirmDeleteThreadId != null) {
+        AlertDialog(
+            onDismissRequest = viewModel::cancelDeleteConversation,
+            title = { Text(stringResource(R.string.delete_conversation)) },
+            text = { Text(stringResource(R.string.delete_conversation_confirm)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::confirmDeleteConversation) {
+                    Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::cancelDeleteConversation) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -117,7 +139,7 @@ fun InboxScreen(
                 .padding(padding),
         ) {
             AnimatedVisibility(
-                visible = !ui.hasPermissions,
+                visible = !ui.hasPermissions && !ui.permissionBannerDismissed,
                 enter = SoftMotion.fadeSlideUp(),
                 exit = SoftMotion.fadeSlideDown(),
             ) {
@@ -125,11 +147,12 @@ fun InboxScreen(
                     text = stringResource(R.string.permission_required),
                     action = "Grant",
                     onAction = onRequestPermissions,
+                    onClose = viewModel::dismissPermissionBanner,
                 )
             }
 
             AnimatedVisibility(
-                visible = ui.hasPermissions && !ui.isDefaultSms,
+                visible = ui.hasPermissions && !ui.isDefaultSms && !ui.defaultSmsBannerDismissed,
                 enter = SoftMotion.fadeSlideUp(),
                 exit = SoftMotion.fadeSlideDown(),
             ) {
@@ -145,6 +168,7 @@ fun InboxScreen(
                     onSecondaryAction = onOpenAppInfo,
                     tertiaryAction = stringResource(R.string.open_default_apps),
                     onTertiaryAction = onOpenDefaultApps,
+                    onClose = viewModel::dismissDefaultSmsBanner,
                 )
             }
 
@@ -183,12 +207,12 @@ fun InboxScreen(
             )
 
             AnimatedContent(
-                targetState = conversations.isEmpty(),
+                targetState = ui.category,
                 transitionSpec = SoftMotion.tabContentTransform(),
-                label = "inboxContent",
+                label = "inboxTabContent",
                 modifier = Modifier.weight(1f),
-            ) { empty ->
-                if (empty) {
+            ) {
+                if (conversations.isEmpty()) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -213,6 +237,8 @@ fun InboxScreen(
                             ConversationRow(
                                 conversation = conversation,
                                 onClick = { onOpenThread(conversation.threadId, conversation.address) },
+                                onArchive = { viewModel.archiveConversation(conversation.threadId) },
+                                onDelete = { viewModel.requestDeleteConversation(conversation.threadId) },
                                 onCopyOtp = { code ->
                                     val clipboard =
                                         context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -244,6 +270,7 @@ private fun Banner(
     onSecondaryAction: (() -> Unit)? = null,
     tertiaryAction: String? = null,
     onTertiaryAction: (() -> Unit)? = null,
+    onClose: (() -> Unit)? = null,
 ) {
     Card(
         modifier = Modifier
@@ -255,12 +282,29 @@ private fun Banner(
         ),
         shape = MaterialTheme.shapes.large,
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
+        Column(modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(top = 8.dp, end = 4.dp),
+                )
+                if (onClose != null) {
+                    IconButton(onClick = onClose) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = stringResource(R.string.close),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    }
+                }
+            }
             TextButton(onClick = onAction) { Text(action) }
             if (secondaryAction != null && onSecondaryAction != null) {
                 TextButton(onClick = onSecondaryAction) { Text(secondaryAction) }
@@ -310,6 +354,8 @@ private fun CategoryTabs(
 private fun ConversationRow(
     conversation: Conversation,
     onClick: () -> Unit,
+    onArchive: () -> Unit,
+    onDelete: () -> Unit,
     onCopyOtp: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -317,10 +363,13 @@ private fun ConversationRow(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AvatarCircle(name = conversation.displayName)
+        AvatarCircle(
+            name = conversation.displayName,
+            modifier = Modifier.padding(start = 8.dp),
+        )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -383,6 +432,20 @@ private fun ConversationRow(
                     }
                 }
             }
+        }
+        IconButton(onClick = onArchive) {
+            Icon(
+                Icons.Default.Archive,
+                contentDescription = stringResource(R.string.archive),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        IconButton(onClick = onDelete) {
+            Icon(
+                Icons.Default.Delete,
+                contentDescription = stringResource(R.string.delete),
+                tint = MaterialTheme.colorScheme.error,
+            )
         }
     }
 }

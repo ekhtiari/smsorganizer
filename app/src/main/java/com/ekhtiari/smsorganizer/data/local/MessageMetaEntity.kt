@@ -16,4 +16,5 @@ data class ThreadMetaEntity(
     @PrimaryKey val threadId: Long,
     val pinnedCategory: String? = null,
     val blocked: Boolean = false,
+    val archived: Boolean = false,
 )

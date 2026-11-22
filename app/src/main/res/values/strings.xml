@@ -25,4 +25,12 @@
     <string name="choose_sim">Choose SIM</string>
     <string name="no_conversations">No conversations yet</string>
     <string name="reply">Reply</string>
+    <string name="delete">Delete</string>
+    <string name="archive">Archive</string>
+    <string name="close">Close</string>
+    <string name="delete_message">Delete message</string>
+    <string name="delete_conversation">Delete conversation</string>
+    <string name="delete_message_confirm">Delete this message permanently?</string>
+    <string name="delete_conversation_confirm">Delete this conversation and all its messages?</string>
+    <string name="cancel">Cancel</string>
 </resources>

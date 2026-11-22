@@ -42,17 +42,25 @@ class NotificationHelper(private val context: Context) {
         )
     }
 
+    fun notificationIdFor(address: String): Int = address.hashCode() and 0x7FFFFFFF
+
+    fun dismiss(address: String) {
+        NotificationManagerCompat.from(context).cancel(notificationIdFor(address))
+    }
+
     fun notifyIncoming(
         address: String,
         body: String,
         category: MessageCategory,
         otpCode: String?,
         threadId: Long,
+        messageId: Long = 0L,
     ) {
         ensureChannels()
         val title = ContactHelper.resolveDisplayName(context, address) ?: address
         val channel = if (category == MessageCategory.OTP) CHANNEL_OTP else CHANNEL_MESSAGES
         val content = if (otpCode != null) "Code: $otpCode — $body" else body
+        val notifId = notificationIdFor(address)
 
         val openIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -93,11 +101,58 @@ class NotificationHelper(private val context: Context) {
             builder.addAction(0, context.getString(R.string.copy_otp), copyPending)
         }
 
+        builder.addAction(
+            0,
+            context.getString(R.string.archive),
+            actionPending(
+                action = NotificationActionReceiver.ACTION_ARCHIVE,
+                requestCode = notifId + 1,
+                address = address,
+                threadId = threadId,
+                messageId = messageId,
+                notificationId = notifId,
+            ),
+        )
+        builder.addAction(
+            0,
+            context.getString(R.string.delete),
+            actionPending(
+                action = NotificationActionReceiver.ACTION_DELETE,
+                requestCode = notifId + 2,
+                address = address,
+                threadId = threadId,
+                messageId = messageId,
+                notificationId = notifId,
+            ),
+        )
+
         try {
-            NotificationManagerCompat.from(context)
-                .notify((address.hashCode() and 0x7FFFFFFF), builder.build())
+            NotificationManagerCompat.from(context).notify(notifId, builder.build())
         } catch (_: SecurityException) {
             // POST_NOTIFICATIONS not granted
         }
+    }
+
+    private fun actionPending(
+        action: String,
+        requestCode: Int,
+        address: String,
+        threadId: Long,
+        messageId: Long,
+        notificationId: Int,
+    ): PendingIntent {
+        val intent = Intent(context, NotificationActionReceiver::class.java).apply {
+            this.action = action
+            putExtra(NotificationActionReceiver.EXTRA_ADDRESS, address)
+            putExtra(NotificationActionReceiver.EXTRA_THREAD_ID, threadId)
+            putExtra(NotificationActionReceiver.EXTRA_MESSAGE_ID, messageId)
+            putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_ID, notificationId)
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            requestCode,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
     }
 }

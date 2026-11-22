@@ -9,6 +9,7 @@ import android.os.Looper
 import android.provider.Telephony
 import com.ekhtiari.smsorganizer.data.local.AppDatabase
 import com.ekhtiari.smsorganizer.data.local.MessageMetaEntity
+import com.ekhtiari.smsorganizer.data.local.ThreadMetaEntity
 import com.ekhtiari.smsorganizer.domain.Conversation
 import com.ekhtiari.smsorganizer.domain.MessageCategory
 import com.ekhtiari.smsorganizer.domain.MessageClassifier
@@ -29,14 +30,17 @@ class SmsRepository(private val context: Context) {
 
     private val db = AppDatabase.get(context)
     private val metaDao = db.messageMetaDao()
+    private val threadMetaDao = db.threadMetaDao()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun observeConversations(category: MessageCategory?): Flow<List<Conversation>> {
         val smsFlow = observeSmsChanges()
         val metaFlow = metaDao.observeAll()
-        return combine(smsFlow, metaFlow) { _, metas ->
+        val archivedFlow = threadMetaDao.observeArchivedThreadIds()
+        return combine(smsFlow, metaFlow, archivedFlow) { _, metas, archivedIds ->
             val metaMap = metas.associateBy { it.messageId }
-            loadConversations(category, metaMap)
+            val archived = archivedIds.toHashSet()
+            loadConversations(category, metaMap).filter { it.threadId !in archived }
         }
     }
 
@@ -124,14 +128,78 @@ class SmsRepository(private val context: Context) {
     }
 
     fun deleteMessage(messageId: Long) {
+        scope.launch { deleteMessageNow(messageId) }
+    }
+
+    suspend fun deleteMessageNow(messageId: Long) = withContext(Dispatchers.IO) {
         try {
             context.contentResolver.delete(
                 Telephony.Sms.CONTENT_URI,
                 "${Telephony.Sms._ID}=?",
                 arrayOf(messageId.toString()),
             )
-            scope.launch { metaDao.delete(messageId) }
+            metaDao.delete(messageId)
         } catch (_: Exception) {
+        }
+    }
+
+    fun deleteThread(threadId: Long) {
+        scope.launch { deleteThreadNow(threadId) }
+    }
+
+    suspend fun deleteThreadNow(threadId: Long) = withContext(Dispatchers.IO) {
+        try {
+            val ids = mutableListOf<Long>()
+            context.contentResolver.query(
+                Telephony.Sms.CONTENT_URI,
+                arrayOf(Telephony.Sms._ID),
+                "${Telephony.Sms.THREAD_ID}=?",
+                arrayOf(threadId.toString()),
+                null,
+            )?.use { cursor ->
+                val idIdx = cursor.getColumnIndexOrThrow(Telephony.Sms._ID)
+                while (cursor.moveToNext()) ids += cursor.getLong(idIdx)
+            }
+            context.contentResolver.delete(
+                Telephony.Sms.CONTENT_URI,
+                "${Telephony.Sms.THREAD_ID}=?",
+                arrayOf(threadId.toString()),
+            )
+            if (ids.isNotEmpty()) metaDao.deleteAll(ids)
+            threadMetaDao.delete(threadId)
+        } catch (_: Exception) {
+        }
+    }
+
+    suspend fun archiveThread(threadId: Long) = withContext(Dispatchers.IO) {
+        if (threadId <= 0L) return@withContext
+        val existing = threadMetaDao.get(threadId)
+        threadMetaDao.upsert(
+            (existing ?: ThreadMetaEntity(threadId = threadId)).copy(archived = true),
+        )
+    }
+
+    fun resolveThreadId(address: String, messageId: Long? = null): Long {
+        if (messageId != null && messageId > 0L) {
+            try {
+                context.contentResolver.query(
+                    Telephony.Sms.CONTENT_URI,
+                    arrayOf(Telephony.Sms.THREAD_ID),
+                    "${Telephony.Sms._ID}=?",
+                    arrayOf(messageId.toString()),
+                    null,
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        return cursor.getLong(cursor.getColumnIndexOrThrow(Telephony.Sms.THREAD_ID))
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        }
+        return try {
+            Telephony.Threads.getOrCreateThreadId(context, address)
+        } catch (_: Exception) {
+            0L
         }
     }
 

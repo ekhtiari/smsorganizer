@@ -58,15 +58,14 @@ class SmsDeliverReceiver : BroadcastReceiver() {
                         category = classification.category,
                         otpCode = classification.otpCode,
                     )
+                    val threadId = app.smsRepository.resolveThreadId(address, messageId)
                     app.notificationHelper.notifyIncoming(
                         address = address,
                         body = body,
                         category = classification.category,
                         otpCode = classification.otpCode,
-                        threadId = uri?.let {
-                            // thread id resolved later via repository when opening
-                            messageId
-                        } ?: 0L,
+                        threadId = threadId,
+                        messageId = messageId,
                     )
                 } finally {
                     pendingResult.finish()
@@ -75,7 +74,14 @@ class SmsDeliverReceiver : BroadcastReceiver() {
         } else {
             (context.applicationContext as? SmsOrganizerApp)
                 ?.notificationHelper
-                ?.notifyIncoming(address, body, classification.category, classification.otpCode, 0L)
+                ?.notifyIncoming(
+                    address = address,
+                    body = body,
+                    category = classification.category,
+                    otpCode = classification.otpCode,
+                    threadId = 0L,
+                    messageId = messageId ?: 0L,
+                )
         }
     }
 }

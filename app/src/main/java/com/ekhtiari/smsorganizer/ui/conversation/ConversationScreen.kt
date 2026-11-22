@@ -28,6 +28,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -87,6 +89,24 @@ fun ConversationScreen(
         }
     }
 
+    if (ui.confirmDeleteMessageId != null) {
+        AlertDialog(
+            onDismissRequest = viewModel::cancelDeleteMessage,
+            title = { Text(stringResource(R.string.delete_message)) },
+            text = { Text(stringResource(R.string.delete_message_confirm)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::confirmDeleteMessage) {
+                    Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::cancelDeleteMessage) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -136,6 +156,7 @@ fun ConversationScreen(
                             clipboard.setPrimaryClip(ClipData.newPlainText("OTP", code))
                             Toast.makeText(context, R.string.otp_copied, Toast.LENGTH_SHORT).show()
                         },
+                        onDelete = { viewModel.requestDeleteMessage(message.id) },
                         modifier = Modifier.animateItem(
                             fadeInSpec = SoftMotion.tweenSoft(SoftMotion.FastMs),
                             fadeOutSpec = SoftMotion.tweenSoft(SoftMotion.FastMs),
@@ -228,19 +249,32 @@ fun ConversationScreen(
 private fun MessageBubble(
     message: SmsMessage,
     onCopyOtp: (String) -> Unit,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val outgoing = message.type == SmsMessage.TYPE_SENT ||
         message.type == SmsMessage.TYPE_OUTBOX ||
         message.type == SmsMessage.TYPE_QUEUED
+    val onBubble = if (outgoing) MaterialTheme.colorScheme.onPrimary
+    else MaterialTheme.colorScheme.onSurfaceVariant
 
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = if (outgoing) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Bottom,
     ) {
+        if (outgoing) {
+            IconButton(onClick = onDelete) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = stringResource(R.string.delete_message),
+                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.75f),
+                )
+            }
+        }
         Column(
             modifier = Modifier
-                .widthIn(max = 320.dp)
+                .widthIn(max = 300.dp)
                 .background(
                     color = if (outgoing) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.surfaceVariant,
@@ -256,23 +290,20 @@ private fun MessageBubble(
         ) {
             Text(
                 text = message.body,
-                color = if (outgoing) MaterialTheme.colorScheme.onPrimary
-                else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = onBubble,
             )
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = formatMessageTime(message.date),
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (outgoing) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (outgoing) onBubble.copy(alpha = 0.8f) else onBubble,
                 )
                 if (message.subscriptionId >= 0) {
                     Text(
                         text = " · SIM",
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (outgoing) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (outgoing) onBubble.copy(alpha = 0.8f) else onBubble,
                     )
                 }
             }
@@ -285,6 +316,15 @@ private fun MessageBubble(
                 TextButton(onClick = { message.otpCode?.let(onCopyOtp) }) {
                     Text(stringResource(R.string.copy_otp) + " ${message.otpCode}")
                 }
+            }
+        }
+        if (!outgoing) {
+            IconButton(onClick = onDelete) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = stringResource(R.string.delete_message),
+                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.75f),
+                )
             }
         }
     }

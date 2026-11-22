@@ -22,8 +22,14 @@ class SmsReceivedObserver : BroadcastReceiver() {
         val body = messages.joinToString("") { it.displayMessageBody.orEmpty() }
         val classification = MessageClassifier.classify(body, address)
 
-        (context.applicationContext as? SmsOrganizerApp)
-            ?.notificationHelper
-            ?.notifyIncoming(address, body, classification.category, classification.otpCode, 0L)
+        val app = context.applicationContext as? SmsOrganizerApp ?: return
+        val threadId = app.smsRepository.resolveThreadId(address)
+        app.notificationHelper.notifyIncoming(
+            address = address,
+            body = body,
+            category = classification.category,
+            otpCode = classification.otpCode,
+            threadId = threadId,
+        )
     }
 }

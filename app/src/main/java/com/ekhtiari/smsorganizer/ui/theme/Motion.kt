@@ -67,15 +67,16 @@ object SoftMotion {
             )
 
     fun <S> tabContentTransform(): AnimatedContentTransitionScope<S>.() -> ContentTransform = {
-        fadeIn(animationSpec = tweenSoft(FastMs)) +
+        val forward = targetState.hashCode() >= initialState.hashCode()
+        fadeIn(animationSpec = tweenSoft()) +
             slideInHorizontally(
-                animationSpec = tweenSoft(FastMs),
-                initialOffsetX = { if (targetState.hashCode() > initialState.hashCode()) it / 20 else -it / 20 },
+                animationSpec = tweenSoft(),
+                initialOffsetX = { if (forward) it / 8 else -it / 8 },
             ) togetherWith
             fadeOut(animationSpec = tweenSoft(FastMs)) +
                 slideOutHorizontally(
                     animationSpec = tweenSoft(FastMs),
-                    targetOffsetX = { if (targetState.hashCode() > initialState.hashCode()) -it / 20 else it / 20 },
+                    targetOffsetX = { if (forward) -it / 10 else it / 10 },
                 )
     }
 }

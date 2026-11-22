@@ -25,6 +25,9 @@ interface MessageMetaDao {
 
     @Query("DELETE FROM message_meta WHERE messageId = :messageId")
     suspend fun delete(messageId: Long)
+
+    @Query("DELETE FROM message_meta WHERE messageId IN (:messageIds)")
+    suspend fun deleteAll(messageIds: List<Long>)
 }
 
 @Dao
@@ -35,6 +38,15 @@ interface ThreadMetaDao {
     @Query("SELECT * FROM thread_meta WHERE threadId = :threadId")
     suspend fun get(threadId: Long): ThreadMetaEntity?
 
+    @Query("SELECT * FROM thread_meta")
+    fun observeAll(): Flow<List<ThreadMetaEntity>>
+
     @Query("SELECT * FROM thread_meta WHERE blocked = 1")
     suspend fun getBlocked(): List<ThreadMetaEntity>
+
+    @Query("SELECT threadId FROM thread_meta WHERE archived = 1")
+    fun observeArchivedThreadIds(): Flow<List<Long>>
+
+    @Query("DELETE FROM thread_meta WHERE threadId = :threadId")
+    suspend fun delete(threadId: Long)
 }

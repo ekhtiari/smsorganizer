@@ -26,6 +26,7 @@ data class ConversationUiState(
     val sims: List<SimInfo> = emptyList(),
     val sending: Boolean = false,
     val error: String? = null,
+    val confirmDeleteMessageId: Long? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -83,6 +84,22 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
                     error = "Failed to send. Check SMS permission / default app.",
                 )
             }
+        }
+    }
+
+    fun requestDeleteMessage(messageId: Long) {
+        _ui.value = _ui.value.copy(confirmDeleteMessageId = messageId)
+    }
+
+    fun cancelDeleteMessage() {
+        _ui.value = _ui.value.copy(confirmDeleteMessageId = null)
+    }
+
+    fun confirmDeleteMessage() {
+        val messageId = _ui.value.confirmDeleteMessageId ?: return
+        _ui.value = _ui.value.copy(confirmDeleteMessageId = null)
+        viewModelScope.launch {
+            app.smsRepository.deleteMessageNow(messageId)
         }
     }
 }
