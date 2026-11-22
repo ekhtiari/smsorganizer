@@ -23,15 +23,22 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class SmsRepository(private val context: Context) {
+class SmsRepository(private val context: Context) : SmsDeleter {
 
     private val db = AppDatabase.get(context)
     private val metaDao = db.messageMetaDao()
     private val threadMetaDao = db.threadMetaDao()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val refresh = SmsRefreshBus()
+    private val deletion = SmsDeletion(
+        content = TelephonySmsContentSource(context),
+        meta = RoomMessageMetaStore(metaDao, threadMetaDao),
+        refresh = refresh,
+    )
 
     fun observeConversations(category: MessageCategory?): Flow<List<Conversation>> {
         val smsFlow = observeSmsChanges()
@@ -131,45 +138,18 @@ class SmsRepository(private val context: Context) {
         scope.launch { deleteMessageNow(messageId) }
     }
 
-    suspend fun deleteMessageNow(messageId: Long) = withContext(Dispatchers.IO) {
-        try {
-            context.contentResolver.delete(
-                Telephony.Sms.CONTENT_URI,
-                "${Telephony.Sms._ID}=?",
-                arrayOf(messageId.toString()),
-            )
-            metaDao.delete(messageId)
-        } catch (_: Exception) {
-        }
-    }
+    override suspend fun deleteMessageNow(messageId: Long): DeleteOutcome =
+        withContext(Dispatchers.IO) { deletion.deleteMessage(messageId) }
 
     fun deleteThread(threadId: Long) {
         scope.launch { deleteThreadNow(threadId) }
     }
 
-    suspend fun deleteThreadNow(threadId: Long) = withContext(Dispatchers.IO) {
-        try {
-            val ids = mutableListOf<Long>()
-            context.contentResolver.query(
-                Telephony.Sms.CONTENT_URI,
-                arrayOf(Telephony.Sms._ID),
-                "${Telephony.Sms.THREAD_ID}=?",
-                arrayOf(threadId.toString()),
-                null,
-            )?.use { cursor ->
-                val idIdx = cursor.getColumnIndexOrThrow(Telephony.Sms._ID)
-                while (cursor.moveToNext()) ids += cursor.getLong(idIdx)
-            }
-            context.contentResolver.delete(
-                Telephony.Sms.CONTENT_URI,
-                "${Telephony.Sms.THREAD_ID}=?",
-                arrayOf(threadId.toString()),
-            )
-            if (ids.isNotEmpty()) metaDao.deleteAll(ids)
-            threadMetaDao.delete(threadId)
-        } catch (_: Exception) {
-        }
-    }
+    override suspend fun deleteThreadNow(threadId: Long): DeleteOutcome =
+        withContext(Dispatchers.IO) { deletion.deleteThread(threadId) }
+
+    override suspend fun undoDelete(undo: DeleteUndo): Boolean =
+        withContext(Dispatchers.IO) { deletion.undo(undo) }
 
     suspend fun archiveThread(threadId: Long) = withContext(Dispatchers.IO) {
         if (threadId <= 0L) return@withContext
@@ -203,32 +183,36 @@ class SmsRepository(private val context: Context) {
         }
     }
 
-    private fun observeSmsChanges(): Flow<Unit> = callbackFlow {
-        trySend(Unit)
-        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
-            override fun onChange(selfChange: Boolean) {
-                trySend(Unit)
-            }
+    private fun observeSmsChanges(): Flow<Unit> = merge(
+        callbackFlow {
+            trySend(Unit)
+            val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+                override fun onChange(selfChange: Boolean) {
+                    trySend(Unit)
+                }
 
-            override fun onChange(selfChange: Boolean, uri: Uri?) {
-                trySend(Unit)
+                override fun onChange(selfChange: Boolean, uri: Uri?) {
+                    trySend(Unit)
+                }
             }
-        }
-        try {
-            context.contentResolver.registerContentObserver(
-                Telephony.Sms.CONTENT_URI,
-                true,
-                observer,
-            )
-        } catch (_: SecurityException) {
-        }
-        awaitClose {
-            try {
-                context.contentResolver.unregisterContentObserver(observer)
-            } catch (_: Exception) {
+            val resolver = context.contentResolver
+            // content://sms and content://mms-sms/conversations. A delete on either
+            // URI has to reload the inbox; Samsung often notifies only one of them.
+            for (uri in listOf(Telephony.Sms.CONTENT_URI, Telephony.Threads.CONTENT_URI)) {
+                try {
+                    resolver.registerContentObserver(uri, true, observer)
+                } catch (_: SecurityException) {
+                }
             }
-        }
-    }
+            awaitClose {
+                try {
+                    resolver.unregisterContentObserver(observer)
+                } catch (_: Exception) {
+                }
+            }
+        },
+        refresh.signals,
+    )
 
     private fun loadConversations(
         categoryFilter: MessageCategory?,

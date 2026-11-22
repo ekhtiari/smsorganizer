@@ -191,6 +191,7 @@ class MainActivity : ComponentActivity() {
                             threadId = threadId,
                             address = Uri.decode(address),
                             onBack = { navController.popBackStack() },
+                            onRequestDefaultSms = ::requestDefaultSms,
                             sharedScope = this,
                         )
                     }

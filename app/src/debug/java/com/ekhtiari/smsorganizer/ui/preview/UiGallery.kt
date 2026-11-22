@@ -257,7 +257,7 @@ internal fun SettingsPreviewBody() {
         hasPerms = true,
         roleAvailable = true,
         simSummary = "SIM 1 · Irancell (subId=1)\nSIM 2 · MCI (subId=2)",
-        versionLabel = stringResource(R.string.settings_version, "1.0.9", 9),
+        versionLabel = stringResource(R.string.settings_version, "1.0.10", 10),
         updateStatus = stringResource(R.string.update_check_hint),
         checkingUpdate = false,
         onBack = {},
@@ -282,7 +282,7 @@ fun UpdateDarkPreview() = Frame(dark = true) { UpdatePreviewBody() }
 internal fun UpdatePreviewBody() {
     UpdatePromptDialog(
         versionName = "1.1.0",
-        currentVersion = "1.0.9",
+        currentVersion = "1.0.10",
         directApk = true,
         onConfirm = {},
         onLater = {},

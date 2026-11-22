@@ -85,7 +85,7 @@ Workflow: [`.github/workflows/android.yml`](.github/workflows/android.yml)
 - Runs on push/PR to `main` / `master`, and on tags `v*`
 - Signs both APKs when the [signing secrets](#signing) are set
 - Uploads APK artifacts (`SMS-Organizer-release` when signed)
-- On tags `v*`, requires the signing secrets and attaches the APKs to a GitHub Release
+- On tags `v*`, requires the signing secrets and attaches only the signed release APK (`SMS-Organizer-<version>.apk`) to a GitHub Release. Debug APKs are built and verified in CI but are not release assets.
 
 ## Privacy
 

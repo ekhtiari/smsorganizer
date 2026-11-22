@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -57,6 +58,8 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -65,6 +68,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -85,6 +89,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ekhtiari.smsorganizer.R
 import com.ekhtiari.smsorganizer.domain.Conversation
+import com.ekhtiari.smsorganizer.ui.DeleteSnackbarEffect
 import com.ekhtiari.smsorganizer.domain.MessageCategory
 import com.ekhtiari.smsorganizer.ui.components.AvatarCircle
 import com.ekhtiari.smsorganizer.ui.components.CategoryPill
@@ -101,7 +106,6 @@ import com.ekhtiari.smsorganizer.ui.theme.SoftMotion
 import com.ekhtiari.smsorganizer.ui.theme.sharedWith
 import com.ekhtiari.smsorganizer.ui.theme.withMessageFont
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.runtime.remember
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -182,6 +186,8 @@ fun InboxScreen(
         onOpenDefaultApps = onOpenDefaultApps,
         onDismissPermission = viewModel::dismissPermissionBanner,
         onDismissDefaultSms = viewModel::dismissDefaultSmsBanner,
+        onUndoDelete = viewModel::undoDelete,
+        onDismissDeleteNotice = viewModel::dismissDeleteNotice,
         sharedScope = sharedScope,
     )
 }
@@ -205,11 +211,21 @@ fun InboxContent(
     onOpenDefaultApps: () -> Unit,
     onDismissPermission: () -> Unit,
     onDismissDefaultSms: () -> Unit,
+    onUndoDelete: () -> Unit = {},
+    onDismissDeleteNotice: (Long) -> Unit = {},
     sharedScope: AnimatedVisibilityScope? = null,
 ) {
     val haptics = rememberUiHaptics()
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val reduce = LocalReducedMotion.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    DeleteSnackbarEffect(
+        notice = ui.deleteNotice,
+        snackbarHostState = snackbarHostState,
+        onUndo = onUndoDelete,
+        onRequestDefaultSms = onRequestDefaultSms,
+        onDismiss = onDismissDeleteNotice,
+    )
     var toolbarExpanded by rememberSaveable { mutableStateOf(true) }
     val scrollAway = with(FloatingToolbarDefaults) {
         Modifier.floatingToolbarVerticalNestedScroll(
@@ -220,6 +236,7 @@ fun InboxContent(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             MediumFlexibleTopAppBar(
                 title = {
@@ -262,9 +279,12 @@ fun InboxContent(
             )
         },
         bottomBar = {
+            // Scaffold does not inset the bottomBar. navigationBarsPadding covers
+            // both the 3-button bar and the gesture handle, and lifts the FAB with the toolbar.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .navigationBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -414,6 +434,8 @@ fun InboxContent(
                     )
                     else -> LazyColumn(
                         modifier = scrollAway,
+                        // Scaffold already pads by the bottom bar (including the nav inset).
+                        // This extra space keeps the last row from sitting under the toolbar.
                         contentPadding = PaddingValues(bottom = 24.dp, top = 4.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {

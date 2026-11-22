@@ -7,6 +7,8 @@ import com.ekhtiari.smsorganizer.SmsOrganizerApp
 import com.ekhtiari.smsorganizer.domain.Conversation
 import com.ekhtiari.smsorganizer.domain.MessageCategory
 import com.ekhtiari.smsorganizer.domain.SimInfo
+import com.ekhtiari.smsorganizer.ui.DeleteNotice
+import com.ekhtiari.smsorganizer.ui.DeleteViewModelLogic
 import com.ekhtiari.smsorganizer.util.SmsPermissions
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +31,7 @@ data class InboxUiState(
     val defaultSmsBannerDismissed: Boolean = false,
     val sims: List<SimInfo> = emptyList(),
     val confirmDeleteThreadId: Long? = null,
+    val deleteNotice: DeleteNotice? = null,
     val loading: Boolean = false,
 )
 
@@ -38,8 +41,13 @@ class InboxViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _ui = MutableStateFlow(InboxUiState())
     private val _loading = MutableStateFlow(true)
-    val ui: StateFlow<InboxUiState> = combine(_ui, _loading) { state, loading ->
-        state.copy(loading = loading)
+    private val deletion = DeleteViewModelLogic(app.smsRepository)
+    val ui: StateFlow<InboxUiState> = combine(_ui, _loading, deletion.state) { state, loading, delete ->
+        state.copy(
+            loading = loading,
+            confirmDeleteThreadId = delete.confirmThreadId,
+            deleteNotice = delete.notice,
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), InboxUiState(loading = true))
 
     private val categoryFilter = MutableStateFlow<MessageCategory?>(null)
@@ -99,21 +107,19 @@ class InboxViewModel(application: Application) : AndroidViewModel(application) {
         _ui.value = _ui.value.copy(searchQuery = query)
     }
 
-    fun requestDeleteConversation(threadId: Long) {
-        _ui.value = _ui.value.copy(confirmDeleteThreadId = threadId)
-    }
+    fun requestDeleteConversation(threadId: Long) = deletion.requestDeleteThread(threadId)
 
-    fun cancelDeleteConversation() {
-        _ui.value = _ui.value.copy(confirmDeleteThreadId = null)
-    }
+    fun cancelDeleteConversation() = deletion.cancel()
 
     fun confirmDeleteConversation() {
-        val threadId = _ui.value.confirmDeleteThreadId ?: return
-        _ui.value = _ui.value.copy(confirmDeleteThreadId = null)
-        viewModelScope.launch {
-            app.smsRepository.deleteThreadNow(threadId)
-        }
+        viewModelScope.launch { deletion.confirmThread() }
     }
+
+    fun undoDelete() {
+        viewModelScope.launch { deletion.undo() }
+    }
+
+    fun dismissDeleteNotice(id: Long) = deletion.dismiss(id)
 
     fun archiveConversation(threadId: Long) {
         viewModelScope.launch {

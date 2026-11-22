@@ -142,13 +142,12 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Attach APKs to GitHub Release
+      - name: Attach release APK to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            app/build/outputs/apk/debug/SMS-Organizer-*.apk
-            app/build/outputs/apk/release/SMS-Organizer-*.apk
+          # Signed release only. Debug APKs stay as workflow artifacts for PRs.
+          files: app/build/outputs/apk/release/SMS-Organizer-*.apk
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
