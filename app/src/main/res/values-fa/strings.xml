@@ -16,4 +16,8 @@
     <string name="notification_channel_updates_description">نسخه‌های جدید SMS Organizer</string>
     <string name="notification_update_title">نسخه جدید موجود است</string>
     <string name="notification_update_body">نسخه %1$s آماده دانلود است.</string>
+    <string name="back">بازگشت</string>
+    <string name="to_recipient">به</string>
+    <string name="grant">اجازه</string>
+    <string name="empty_conversations_hint">گفتگوهای جدید اینجا نشان داده می‌شوند.</string>
 </resources>
