@@ -13,6 +13,8 @@
 *.aab
 *.jks
 *.keystore
+*.p12
+*.pfx
 build-log.txt
 *.log
 

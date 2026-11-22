@@ -5,6 +5,83 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+// Environment variables win over Gradle properties (-P / ~/.gradle/gradle.properties).
+// Passwords are not trimmed: a trailing newline in a secret is a real mismatch.
+fun Project.credential(name: String): String? {
+    val raw = System.getenv(name) ?: (findProperty(name) as? String)
+    return raw?.takeIf { it.isNotEmpty() }
+}
+
+// OpenSSL PKCS12 keystores are loaded as JKS unless storeType is pkcs12 or the
+// file name ends in .p12/.pfx. The CI secret is an OpenSSL .p12, so pkcs12 is
+// the default for every extension except .jks.
+fun storeTypeForKeystore(storeFile: java.io.File, explicit: String?): String {
+    explicit?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }?.let { return it }
+    return when (storeFile.extension.lowercase()) {
+        "jks" -> "jks"
+        else -> "pkcs12"
+    }
+}
+
+fun Project.resolveStoreFile(rawPath: String): java.io.File {
+    val expanded = when {
+        rawPath == "~" -> System.getProperty("user.home")
+        rawPath.startsWith("~/") -> System.getProperty("user.home") + rawPath.removePrefix("~")
+        else -> rawPath
+    }
+    return file(expanded)
+}
+
+val signingKeystorePath = credential("SIGNING_KEYSTORE_PATH")
+val signingStorePassword = credential("SIGNING_STORE_PASSWORD")
+val signingKeyAlias = credential("SIGNING_KEY_ALIAS")
+val signingKeyPassword = credential("SIGNING_KEY_PASSWORD")
+val signingStoreType = credential("SIGNING_STORE_TYPE")?.trim()?.takeIf { it.isNotEmpty() }
+val requireReleaseSigning = credential("REQUIRE_RELEASE_SIGNING")
+    ?.equals("true", ignoreCase = true) == true
+
+val requiredSigning = listOf(
+    "SIGNING_KEYSTORE_PATH" to signingKeystorePath,
+    "SIGNING_STORE_PASSWORD" to signingStorePassword,
+    "SIGNING_KEY_ALIAS" to signingKeyAlias,
+    "SIGNING_KEY_PASSWORD" to signingKeyPassword,
+)
+val presentSigning = requiredSigning.filter { it.second != null }
+if (presentSigning.isNotEmpty() && presentSigning.size != requiredSigning.size) {
+    val missing = requiredSigning.filter { it.second == null }.joinToString(", ") { it.first }
+    throw GradleException(
+        "Incomplete APK signing configuration. Missing $missing. " +
+            "Set SIGNING_KEYSTORE_PATH, SIGNING_STORE_PASSWORD, SIGNING_KEY_ALIAS, and " +
+            "SIGNING_KEY_PASSWORD, or leave all of them unset."
+    )
+}
+
+val signingKeystore = signingKeystorePath?.let { rawPath ->
+    resolveStoreFile(rawPath).also { storeFile ->
+        if (!storeFile.isFile) {
+            throw GradleException(
+                "SIGNING_KEYSTORE_PATH does not exist or is not a file: ${storeFile.path}"
+            )
+        }
+    }
+}
+
+if (requireReleaseSigning && signingKeystore == null) {
+    throw GradleException(
+        "Release signing is required (REQUIRE_RELEASE_SIGNING=true) but no signing " +
+            "credentials were provided. Refusing to build an unsigned release APK. Set " +
+            "SIGNING_KEYSTORE_PATH, SIGNING_STORE_PASSWORD, SIGNING_KEY_ALIAS, and " +
+            "SIGNING_KEY_PASSWORD."
+    )
+}
+
+val resolvedStoreType = signingKeystore?.let { storeTypeForKeystore(it, signingStoreType) }
+if (signingKeystore != null) {
+    logger.lifecycle(
+        "Signing debug and release APKs with alias '$signingKeyAlias' (storeType=$resolvedStoreType)."
+    )
+}
+
 android {
     namespace = "com.ekhtiari.smsorganizer"
     compileSdk = 36
@@ -14,13 +91,41 @@ android {
         applicationId = "com.ekhtiari.smsorganizer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.0.6"
+        versionCode = 7
+        versionName = "1.0.7"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    // Signature schemes stay at AGP defaults (v2/v3 for this minSdk, v1 when AGP enables it).
+    // Locals so the signingConfigs lambda can use non-null values.
+    val keystore = signingKeystore
+    val storePasswordValue = signingStorePassword
+    val keyAliasValue = signingKeyAlias
+    val keyPasswordValue = signingKeyPassword
+    val storeTypeValue = resolvedStoreType
+    val releaseSigning = if (
+        keystore != null &&
+        storePasswordValue != null &&
+        keyAliasValue != null &&
+        keyPasswordValue != null &&
+        storeTypeValue != null
+    ) {
+        signingConfigs.create("release") {
+            storeFile = keystore
+            storePassword = storePasswordValue
+            keyAlias = keyAliasValue
+            keyPassword = keyPasswordValue
+            storeType = storeTypeValue
+        }
+    } else {
+        null
     }
 
     buildTypes {
         release {
+            if (releaseSigning != null) {
+                signingConfig = releaseSigning
+            }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -28,6 +133,12 @@ android {
             )
         }
         debug {
+            // Same stable key as release when credentials exist, so CI debug APKs
+            // update each other. The .debug application id keeps them beside release.
+            // Without credentials, AGP's default debug keystore is used.
+            if (releaseSigning != null) {
+                signingConfig = releaseSigning
+            }
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
         }
@@ -53,7 +164,7 @@ android {
         }
     }
 
-    // APK file name: SMS-Organizer-1.0.1.apk / SMS-Organizer-1.0.1-debug.apk
+    // APK file name: SMS-Organizer-<versionName>.apk (debug includes the -debug suffix)
     applicationVariants.configureEach {
         outputs.configureEach {
             val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
