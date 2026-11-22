@@ -1,6 +1,5 @@
 package com.ekhtiari.smsorganizer.ui.theme
 
-import android.os.Build
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -11,27 +10,27 @@ import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ekhtiari.smsorganizer.R
 
 /**
- * Vazirmatn (OFL) covers Persian and Latin, so one family keeps both scripts
- * on the expressive type scale. Letter-spacing stays at 0 so Persian cursive
- * joining is preserved.
+ * UI chrome uses the system sans (Roboto). Vazirmatn stays on message text so
+ * Persian SMS still joins; Latin UI never depends on it.
  */
-private val Vazirmatn = FontFamily(
+private val AppFont = FontFamily.SansSerif
+
+val MessageFontFamily = FontFamily(
     Font(R.font.vazirmatn_regular, FontWeight.Normal),
     Font(R.font.vazirmatn_medium, FontWeight.Medium),
     Font(R.font.vazirmatn_semibold, FontWeight.SemiBold),
@@ -40,91 +39,96 @@ private val Vazirmatn = FontFamily(
 )
 
 private fun type(weight: FontWeight, size: Int, line: Int) = TextStyle(
-    fontFamily = Vazirmatn,
+    fontFamily = AppFont,
     fontWeight = weight,
     fontSize = size.sp,
     lineHeight = line.sp,
     letterSpacing = 0.sp,
 )
 
-// Warm, saturated fallback for devices without dynamic color. Dynamic color
-// still wins on Android 12+.
+/** Message bodies, snippets, drafts, and sender names. Letter-spacing stays 0 so Persian cursive joins. */
+fun TextStyle.withMessageFont(): TextStyle = copy(
+    fontFamily = MessageFontFamily,
+    letterSpacing = 0.sp,
+)
+
+// Blue family. Dynamic color is not used — wallpaper colors would replace this on Android 12+.
 private val LightColors = lightColorScheme(
-    primary = Color(0xFFB32600),
+    primary = Color(0xFF1A56DB),
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFFFDBD1),
-    onPrimaryContainer = Color(0xFF3B0900),
-    inversePrimary = Color(0xFFFFB5A0),
-    secondary = Color(0xFF6B4EA2),
+    primaryContainer = Color(0xFFD8E2FF),
+    onPrimaryContainer = Color(0xFF001849),
+    inversePrimary = Color(0xFFB4C5FF),
+    secondary = Color(0xFF3F4E9A),
     onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFE9DDFF),
-    onSecondaryContainer = Color(0xFF23005C),
-    tertiary = Color(0xFF006A60),
+    secondaryContainer = Color(0xFFDEE0FF),
+    onSecondaryContainer = Color(0xFF00105C),
+    tertiary = Color(0xFF00687A),
     onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFF9EF2E4),
-    onTertiaryContainer = Color(0xFF00201C),
-    background = Color(0xFFFFF8F6),
-    onBackground = Color(0xFF261814),
-    surface = Color(0xFFFFF8F6),
-    onSurface = Color(0xFF261814),
-    surfaceVariant = Color(0xFFF5DDD6),
-    onSurfaceVariant = Color(0xFF56423C),
-    surfaceTint = Color(0xFFB32600),
-    inverseSurface = Color(0xFF3D2C28),
-    inverseOnSurface = Color(0xFFFFEDE8),
+    tertiaryContainer = Color(0xFFA6EEFF),
+    onTertiaryContainer = Color(0xFF001F26),
+    background = Color(0xFFF7F9FF),
+    onBackground = Color(0xFF121C2B),
+    surface = Color(0xFFF7F9FF),
+    onSurface = Color(0xFF121C2B),
+    surfaceVariant = Color(0xFFDCE3F1),
+    onSurfaceVariant = Color(0xFF424754),
+    surfaceTint = Color(0xFF1A56DB),
+    inverseSurface = Color(0xFF273141),
+    inverseOnSurface = Color(0xFFEEF1FA),
     error = Color(0xFFBA1A1A),
     onError = Color(0xFFFFFFFF),
     errorContainer = Color(0xFFFFDAD6),
     onErrorContainer = Color(0xFF410002),
-    outline = Color(0xFF89716B),
-    outlineVariant = Color(0xFFDCC0B8),
+    outline = Color(0xFF727785),
+    outlineVariant = Color(0xFFC2C6D6),
     scrim = Color(0xFF000000),
-    surfaceBright = Color(0xFFFFF8F6),
-    surfaceDim = Color(0xFFEED5CE),
+    surfaceBright = Color(0xFFF7F9FF),
+    surfaceDim = Color(0xFFD5DCE8),
     surfaceContainerLowest = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFFFF1EC),
-    surfaceContainer = Color(0xFFFFE9E3),
-    surfaceContainerHigh = Color(0xFFFBE2DB),
-    surfaceContainerHighest = Color(0xFFF5DCD4),
+    surfaceContainerLow = Color(0xFFF0F3FC),
+    surfaceContainer = Color(0xFFE8EDF7),
+    surfaceContainerHigh = Color(0xFFE2E8F3),
+    surfaceContainerHighest = Color(0xFFDCE3EE),
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFFFFB5A0),
-    onPrimary = Color(0xFF5F1500),
-    primaryContainer = Color(0xFF8C1E00),
-    onPrimaryContainer = Color(0xFFFFDBD1),
-    inversePrimary = Color(0xFFB32600),
-    secondary = Color(0xFFD0BCFF),
-    onSecondary = Color(0xFF3A1D6E),
-    secondaryContainer = Color(0xFF523688),
-    onSecondaryContainer = Color(0xFFE9DDFF),
-    tertiary = Color(0xFF82D5C8),
-    onTertiary = Color(0xFF003731),
-    tertiaryContainer = Color(0xFF005048),
-    onTertiaryContainer = Color(0xFF9EF2E4),
-    background = Color(0xFF1A100E),
-    onBackground = Color(0xFFF8DDD6),
-    surface = Color(0xFF1A100E),
-    onSurface = Color(0xFFF8DDD6),
-    surfaceVariant = Color(0xFF56423C),
-    onSurfaceVariant = Color(0xFFDCC0B8),
-    surfaceTint = Color(0xFFFFB5A0),
-    inverseSurface = Color(0xFFF8DDD6),
-    inverseOnSurface = Color(0xFF3D2C28),
+    primary = Color(0xFFB4C5FF),
+    onPrimary = Color(0xFF002C70),
+    primaryContainer = Color(0xFF00409A),
+    onPrimaryContainer = Color(0xFFD8E2FF),
+    inversePrimary = Color(0xFF1A56DB),
+    secondary = Color(0xFFB9C3FF),
+    onSecondary = Color(0xFF1C2670),
+    secondaryContainer = Color(0xFF353F86),
+    onSecondaryContainer = Color(0xFFDEE0FF),
+    tertiary = Color(0xFF84D3E6),
+    onTertiary = Color(0xFF003640),
+    tertiaryContainer = Color(0xFF004E5C),
+    onTertiaryContainer = Color(0xFFA6EEFF),
+    background = Color(0xFF0E1520),
+    onBackground = Color(0xFFE0E7F4),
+    surface = Color(0xFF0E1520),
+    onSurface = Color(0xFFE0E7F4),
+    surfaceVariant = Color(0xFF424754),
+    onSurfaceVariant = Color(0xFFC2C6D6),
+    surfaceTint = Color(0xFFB4C5FF),
+    inverseSurface = Color(0xFFE0E7F4),
+    inverseOnSurface = Color(0xFF273141),
     error = Color(0xFFFFB4AB),
     onError = Color(0xFF690005),
     errorContainer = Color(0xFF93000A),
     onErrorContainer = Color(0xFFFFDAD6),
-    outline = Color(0xFFA48B84),
-    outlineVariant = Color(0xFF56423C),
+    outline = Color(0xFF8C909F),
+    outlineVariant = Color(0xFF424754),
     scrim = Color(0xFF000000),
-    surfaceBright = Color(0xFF433531),
-    surfaceDim = Color(0xFF1A100E),
-    surfaceContainerLowest = Color(0xFF140B09),
-    surfaceContainerLow = Color(0xFF231815),
-    surfaceContainer = Color(0xFF2A1C19),
-    surfaceContainerHigh = Color(0xFF352621),
-    surfaceContainerHighest = Color(0xFF41312B),
+    surfaceBright = Color(0xFF343B48),
+    surfaceDim = Color(0xFF0E1520),
+    surfaceContainerLowest = Color(0xFF090F18),
+    surfaceContainerLow = Color(0xFF161D2A),
+    surfaceContainer = Color(0xFF1A2230),
+    surfaceContainerHigh = Color(0xFF252C3B),
+    surfaceContainerHighest = Color(0xFF303746),
 )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -177,20 +181,15 @@ val AppShapes = Shapes(
 @Composable
 fun SmsOrganizerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val reduced = rememberReducedMotion()
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColors
-        else -> LightColors
-    }
+    val colorScheme = if (darkTheme) DarkColors else LightColors
 
-    CompositionLocalProvider(LocalReducedMotion provides reduced) {
+    CompositionLocalProvider(
+        LocalReducedMotion provides reduced,
+        LocalLayoutDirection provides LayoutDirection.Ltr,
+    ) {
         MaterialExpressiveTheme(
             colorScheme = colorScheme,
             motionScheme = if (reduced) ReducedMotionScheme else MotionScheme.expressive(),

@@ -2,6 +2,7 @@ package com.ekhtiari.smsorganizer.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.Password
 import androidx.compose.material.icons.outlined.Person
@@ -37,33 +39,39 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.RoundedPolygon
 import com.ekhtiari.smsorganizer.R
 import com.ekhtiari.smsorganizer.domain.MessageCategory
+import com.ekhtiari.smsorganizer.ui.theme.MessageFontFamily
 import java.text.DateFormat
 import java.util.Date
 
 private val AvatarPalette = listOf(
-    Color(0xFFB32600),
-    Color(0xFFD97706),
-    Color(0xFF0F766E),
-    Color(0xFF6B4EA2),
-    Color(0xFFBE185D),
+    Color(0xFF0B57D0),
     Color(0xFF1D4ED8),
-    Color(0xFFB45309),
-    Color(0xFF047857),
-    Color(0xFF9333EA),
+    Color(0xFF1E40AF),
+    Color(0xFF1E3A8A),
+    Color(0xFF3730A3),
+    Color(0xFF312E81),
     Color(0xFF0369A1),
+    Color(0xFF075985),
+    Color(0xFF0E7490),
+    Color(0xFF155E75),
 )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -175,8 +183,13 @@ fun AvatarCircle(
             Text(
                 text = initials,
                 color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = (size.value * 0.34f).sp,
+                style = TextStyle(
+                    fontFamily = MessageFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = (size.value * 0.34f).sp,
+                    letterSpacing = 0.sp,
+                    textDirection = TextDirection.Content,
+                ),
                 maxLines = 1,
                 overflow = TextOverflow.Clip,
             )
@@ -215,7 +228,85 @@ fun CategoryPill(category: MessageCategory, modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.labelMedium,
             color = foreground,
             maxLines = 1,
+            softWrap = false,
         )
+    }
+}
+
+/**
+ * One-line OTP action. The code is measured first so a narrow row or a large
+ * font scale ellipsizes "Copy code" instead of clipping the digits. Height is
+ * the text line plus padding, so the parent row grows instead of clipping.
+ */
+@Composable
+fun CopyCodeChip(
+    code: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+    contentColor: Color = MaterialTheme.colorScheme.primary,
+) {
+    val label = stringResource(R.string.copy_otp)
+    val labelStyle = MaterialTheme.typography.labelLarge
+    val codeStyle = labelStyle.copy(
+        fontWeight = FontWeight.SemiBold,
+        textDirection = TextDirection.Ltr,
+    )
+    Layout(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(containerColor)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        content = {
+            Icon(
+                imageVector = Icons.Outlined.ContentCopy,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(16.dp),
+            )
+            Text(
+                text = label,
+                color = contentColor,
+                style = labelStyle,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = code,
+                color = contentColor,
+                style = codeStyle,
+                maxLines = 1,
+                softWrap = false,
+            )
+        },
+    ) { measurables, constraints ->
+        val gap = 4.dp.roundToPx()
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val icon = measurables[0].measure(loose)
+        val codeMax = (constraints.maxWidth - icon.width - gap).coerceAtLeast(0)
+        val codePlaceable = measurables[2].measure(
+            Constraints(maxWidth = codeMax, maxHeight = constraints.maxHeight),
+        )
+        val labelMax = (constraints.maxWidth - icon.width - codePlaceable.width - gap * 2)
+            .coerceAtLeast(0)
+        val labelPlaceable = measurables[1].measure(
+            Constraints(maxWidth = labelMax, maxHeight = constraints.maxHeight),
+        )
+        val width = (icon.width + labelPlaceable.width + codePlaceable.width + gap * 2)
+            .coerceIn(constraints.minWidth, constraints.maxWidth)
+        val height = maxOf(icon.height, labelPlaceable.height, codePlaceable.height)
+            .coerceIn(constraints.minHeight, constraints.maxHeight)
+        layout(width, height) {
+            var x = 0
+            fun yFor(itemHeight: Int) = (height - itemHeight) / 2
+            icon.place(x, yFor(icon.height))
+            x += icon.width + gap
+            labelPlaceable.place(x, yFor(labelPlaceable.height))
+            x += labelPlaceable.width + gap
+            codePlaceable.place(x, yFor(codePlaceable.height))
+        }
     }
 }
 
@@ -325,7 +416,7 @@ fun ExpressiveDialogIcon(
 }
 
 @Composable
-fun warmFieldColors() = TextFieldDefaults.colors(
+fun filledFieldColors() = TextFieldDefaults.colors(
     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,

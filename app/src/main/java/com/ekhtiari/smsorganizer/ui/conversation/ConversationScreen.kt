@@ -36,7 +36,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Done
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -81,14 +80,16 @@ import com.ekhtiari.smsorganizer.domain.MessageCategory
 import com.ekhtiari.smsorganizer.domain.SimInfo
 import com.ekhtiari.smsorganizer.domain.SmsMessage
 import com.ekhtiari.smsorganizer.ui.components.AvatarCircle
+import com.ekhtiari.smsorganizer.ui.components.CopyCodeChip
 import com.ekhtiari.smsorganizer.ui.components.ExpressiveDialogIcon
 import com.ekhtiari.smsorganizer.ui.components.LoadingState
 import com.ekhtiari.smsorganizer.ui.components.formatMessageTime
 import com.ekhtiari.smsorganizer.ui.components.rememberUiHaptics
-import com.ekhtiari.smsorganizer.ui.components.warmFieldColors
+import com.ekhtiari.smsorganizer.ui.components.filledFieldColors
 import com.ekhtiari.smsorganizer.ui.theme.LocalReducedMotion
 import com.ekhtiari.smsorganizer.ui.theme.SoftMotion
 import com.ekhtiari.smsorganizer.ui.theme.sharedWith
+import com.ekhtiari.smsorganizer.ui.theme.withMessageFont
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -201,7 +202,9 @@ fun ConversationContent(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = title,
-                                style = MaterialTheme.typography.titleLargeEmphasized,
+                                style = MaterialTheme.typography.titleLargeEmphasized.withMessageFont().copy(
+                                    textDirection = TextDirection.Content,
+                                ),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.sharedWith(
@@ -342,10 +345,10 @@ fun ConversationContent(
                         modifier = Modifier.weight(1f),
                         placeholder = { Text(stringResource(R.string.type_message)) },
                         maxLines = 4,
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        textStyle = MaterialTheme.typography.bodyLarge.withMessageFont().copy(
                             textDirection = TextDirection.Content,
                         ),
-                        colors = warmFieldColors(),
+                        colors = filledFieldColors(),
                         shape = MaterialTheme.shapes.extraLarge,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -502,7 +505,7 @@ private fun MessageBubble(
             Text(
                 text = message.body,
                 color = onBubble,
-                style = MaterialTheme.typography.bodyLarge.copy(
+                style = MaterialTheme.typography.bodyLarge.withMessageFont().copy(
                     textDirection = TextDirection.Content,
                 ),
             )
@@ -542,19 +545,17 @@ private fun MessageBubble(
                     ),
                 exit = fadeOut(SoftMotion.effects(reduce, fast = true)),
             ) {
-                TextButton(
+                CopyCodeChip(
+                    code = message.otpCode.orEmpty(),
                     onClick = { message.otpCode?.let(onCopyOtp) },
-                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
-                    colors = ButtonDefaults.textButtonColors(contentColor = onBubble),
-                ) {
-                    Icon(
-                        Icons.Outlined.ContentCopy,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(R.string.copy_otp) + " ${message.otpCode}")
-                }
+                    containerColor = if (outgoing) {
+                        onBubble.copy(alpha = 0.18f)
+                    } else {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                    },
+                    contentColor = if (outgoing) onBubble else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
             }
         }
         if (!outgoing) {

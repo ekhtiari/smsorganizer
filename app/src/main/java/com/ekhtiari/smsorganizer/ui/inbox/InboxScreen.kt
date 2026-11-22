@@ -31,7 +31,6 @@ import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LocalOffer
@@ -89,16 +88,18 @@ import com.ekhtiari.smsorganizer.domain.Conversation
 import com.ekhtiari.smsorganizer.domain.MessageCategory
 import com.ekhtiari.smsorganizer.ui.components.AvatarCircle
 import com.ekhtiari.smsorganizer.ui.components.CategoryPill
+import com.ekhtiari.smsorganizer.ui.components.CopyCodeChip
 import com.ekhtiari.smsorganizer.ui.components.EmptyState
 import com.ekhtiari.smsorganizer.ui.components.ExpressiveDialogIcon
 import com.ekhtiari.smsorganizer.ui.components.LoadingState
 import com.ekhtiari.smsorganizer.ui.components.expressivePress
 import com.ekhtiari.smsorganizer.ui.components.formatRelativeTime
 import com.ekhtiari.smsorganizer.ui.components.rememberUiHaptics
-import com.ekhtiari.smsorganizer.ui.components.warmFieldColors
+import com.ekhtiari.smsorganizer.ui.components.filledFieldColors
 import com.ekhtiari.smsorganizer.ui.theme.LocalReducedMotion
 import com.ekhtiari.smsorganizer.ui.theme.SoftMotion
 import com.ekhtiari.smsorganizer.ui.theme.sharedWith
+import com.ekhtiari.smsorganizer.ui.theme.withMessageFont
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.remember
 
@@ -387,7 +388,10 @@ fun InboxContent(
                     null
                 },
                 singleLine = true,
-                colors = warmFieldColors(),
+                textStyle = MaterialTheme.typography.bodyLarge.withMessageFont().copy(
+                    textDirection = TextDirection.Content,
+                ),
+                colors = filledFieldColors(),
                 shape = MaterialTheme.shapes.extraLarge,
             )
 
@@ -637,10 +641,10 @@ private fun ConversationRow(
             .expressivePress(interaction)
             .animateContentSize(animationSpec = SoftMotion.spatial(reduce, fast = true)),
     ) {
-        Row(
+        Column(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
         ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             AvatarCircle(
                 name = conversation.displayName,
                 modifier = Modifier.sharedWith("avatar-${conversation.threadId}", sharedScope),
@@ -658,7 +662,7 @@ private fun ConversationRow(
                     ) {
                         Text(
                             text = isolateBidi(conversation.displayName),
-                            style = MaterialTheme.typography.titleMediumEmphasized.copy(
+                            style = MaterialTheme.typography.titleMediumEmphasized.withMessageFont().copy(
                                 textDirection = TextDirection.Content,
                             ),
                             maxLines = 1,
@@ -704,7 +708,7 @@ private fun ConversationRow(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = conversation.snippet,
-                    style = MaterialTheme.typography.bodyMedium.copy(
+                    style = MaterialTheme.typography.bodyMedium.withMessageFont().copy(
                         textDirection = TextDirection.Content,
                     ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -733,21 +737,6 @@ private fun ConversationRow(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                        }
-                    }
-                    conversation.otpCode?.let { code ->
-                        TextButton(
-                            onClick = { onCopyOtp(code) },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                            modifier = Modifier.height(32.dp),
-                        ) {
-                            Icon(
-                                Icons.Outlined.ContentCopy,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(stringResource(R.string.copy_otp) + " $code")
                         }
                     }
                 }
@@ -782,6 +771,14 @@ private fun ConversationRow(
                     contentDescription = stringResource(R.string.delete),
                 )
             }
+        }
+        conversation.otpCode?.let { code ->
+            CopyCodeChip(
+                code = code,
+                onClick = { onCopyOtp(code) },
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
         }
     }
 }
